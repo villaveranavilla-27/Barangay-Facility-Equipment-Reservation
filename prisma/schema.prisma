@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum FacilityStatus {
+  AVAILABLE
+  UNDER_MAINTENANCE
+}
+
+enum ReservationItemType {
+  FACILITY
+  EQUIPMENT
+}
+
+enum ReservationStatus {
+  PENDING
+  APPROVED
+  DENIED
+  CANCELLED
+}
+
+model Admin {
+  adminId    Int      @id @default(autoincrement()) @map("admin_ID")
+  name       String   @db.VarChar(50) @map("Name")
+  birthdate  DateTime? @db.Date @map("Birthdate")
+  gender     String   @db.VarChar(50) @map("Gender")
+  address    String   @db.VarChar(50) @map("Address")
+  username   String   @unique @db.VarChar(50) @map("User name")
+  password   String   @db.VarChar(50) @map("Password")
+  contactInfo Int     @map("Contact_Info")
+  email      String   @db.VarChar(50) @map("Email")
+
+  @@map("admin")
+}
+
+model Equipment {
+  equipmentId Int      @id @default(autoincrement()) @map("Equipment_ID")
+  itemName    String   @db.VarChar(191) @map("Item_name")
+  description String?  @db.VarChar(191) @map("Description")
+  category    String?  @db.VarChar(191) @map("Category")
+  quantity    Int
+  price       Float    @db.Double
+
+  reservations Reservation[]
+
+  @@map("equipment")
+}
+
+model Facility {
+  facilityId   Int              @id @default(autoincrement()) @map("Facility_id")
+  itemName     String           @db.VarChar(191) @map("Item_name")
+  description  String?          @db.VarChar(191) @map("Description")
+  status       FacilityStatus   @default(AVAILABLE) @map("Status")
+  pricePerDay  Int              @map("Priceperday")
+
+  reservations Reservation[]
+
+  @@map("facility")
+}
+
+model Reservation {
+  reservationId     Int                @id @default(autoincrement()) @map("Reservation_id")
+  userId            Int                @map("User_ID")
+  itemType          ReservationItemType @map("Item Type")
+  facilityId        Int?               @map("Facility_ID")
+  equipmentId       Int?               @map("Equipment_ID")
+  startDateTime     DateTime           @db.DateTime(3) @map("StartDateTime")
+  endDateTime       DateTime           @db.DateTime(3) @map("EndDateTime")
+  purpose           String             @db.VarChar(191) @map("Purpose")
+  expectedAttendees Int?               @map("Expected Attendees")
+  status            ReservationStatus  @default(PENDING) @map("Status")
+  approvedAt        DateTime?          @db.DateTime(3) @map("ApprovedAt")
+
+  user      User       @relation(fields: [userId], references: [userId], onUpdate: Cascade)
+  facility  Facility?  @relation(fields: [facilityId], references: [facilityId], onDelete: SetNull, onUpdate: Cascade)
+  equipment Equipment? @relation(fields: [equipmentId], references: [equipmentId], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([userId], map: "Reservation_userId_fkey")
+  @@index([facilityId], map: "Reservation_facilityId_fkey")
+  @@index([equipmentId], map: "Reservation_equipmentId_fkey")
+  @@map("reservation")
+}
+
+model User {
+  userId      Int      @id @default(autoincrement()) @map("User_ID")
+  fullName    String   @db.VarChar(191) @map("Full Name")
+  birthdate   DateTime? @db.Date @map("Birthdate")
+  gender      String   @db.VarChar(191) @map("Gender")
+  address     String?  @db.VarChar(191) @map("Address")
+  username    String   @unique @db.VarChar(191) @map("Username")
+  password    String   @db.VarChar(191) @map("Password")
+  contactInfo Int      @map("Contact_Info")
+  email       String   @db.VarChar(50) @map("Email")
+
+  reservations Reservation[]
+
+  @@map("user")
+}

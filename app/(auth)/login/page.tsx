@@ -1,0 +1,43 @@
+import Image from "next/image";
+import Link from "next/link";
+import { AuthForm } from "@/components/auth-form";
+
+export default function LoginPage() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-[#f3f3f3] px-4">
+      <div className="w-full max-w-[600px] bg-white px-16 py-20 shadow-md">
+        
+        {/* Logo (no circle) */}
+        <div className="mb-8 flex flex-col items-center">
+          <Image
+            src="/logo.png"
+            alt="Barangay Go Logo"
+            width={300}
+            height={100}
+            className="object-contain"
+            priority
+          />
+        </div>
+
+        {/* Header */}
+        <h2 className="mb-6 border-b-2 border-green-700 pb-1 text-left text-2xl font-bold text-green-700">
+          USER LOGIN
+        </h2>
+
+        {/* ✅ KEEP YOUR ORIGINAL LOGIC */}
+        <AuthForm mode="user-login" />
+
+        {/* Links */}
+        <div className="mt-6 flex items-center justify-between text-base text-green-700">
+          <Link href="/admin-login" className="font-medium hover:underline">
+            Admin Login
+          </Link>
+
+          <Link href="/register" className="font-medium hover:underline">
+            Create Account
+          </Link>
+        </div>
+      </div>
+    </main>
+  );
+}
