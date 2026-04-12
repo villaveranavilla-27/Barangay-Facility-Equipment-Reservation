@@ -11,11 +11,21 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (session?.user?.role !== "ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const parsed = equipmentSchema.safeParse(await request.json());
-  if (!parsed.success) return NextResponse.json({ error: "Invalid data" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid data" }, { status: 400 });
+  }
 
-  const item = await prisma.equipment.create({ data: parsed.data });
+  const item = await prisma.equipment.create({
+    data: {
+      ...parsed.data,
+      adminId: Number(session.user.id),
+    },
+  });
+
   return NextResponse.json(item);
 }

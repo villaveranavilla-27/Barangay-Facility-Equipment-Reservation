@@ -14,7 +14,7 @@ export function UsersDirectory() {
     username: "",
     email: "",
     password: "",
-    contactInfo: "",
+    contactNumber: "",
     gender: "Male",
     birthdate: "",
     address: ""
@@ -34,7 +34,7 @@ export function UsersDirectory() {
     load();
   }, []);
 
-  const filtered = users.filter((u) => `${u.fullName} ${u.email}`.toLowerCase().includes(query.toLowerCase()));
+  const filtered = users.filter((u) => `${u.name} ${u.email}`.toLowerCase().includes(query.toLowerCase()));
 
   async function createAdmin() {
     const res = await fetch("/api/users", {
@@ -45,7 +45,7 @@ export function UsersDirectory() {
     if (res.ok) {
       toast.success("Admin created");
       setOpen(false);
-      setForm({ name: "", username: "", email: "", password: "", contactInfo: "", gender: "Male", birthdate: "", address: "" });
+      setForm({ name: "", username: "", email: "", password: "", contactNumber: "", gender: "Male", birthdate: "", address: "" });
       load();
     } else toast.error("Unable to create admin");
   }
@@ -75,9 +75,9 @@ export function UsersDirectory() {
               const active = statusMap[u.userId] ?? true;
               return (
                 <tr key={u.userId} className="border-b border-border">
-                  <td className="py-3 pr-4">{u.fullName}</td>
+                  <td className="py-3 pr-4">{u.name}</td>
                   <td className="py-3 pr-4">{u.email}</td>
-                  <td className="py-3 pr-4">{u.contactInfo}</td>
+                  <td className="py-3 pr-4">{u.contactNumber}</td>
                   <td className="py-3 pr-4">USER</td>
                   <td className="py-3 pr-4">
                     <Badge tone={active ? "green" : "red"}>{active ? "Active" : "Inactive"}</Badge>
@@ -119,7 +119,7 @@ export function UsersDirectory() {
           <Input placeholder="Username" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value })} />
           <Input placeholder="Email" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           <Input placeholder="Password" type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
-          <Input placeholder="Contact Number" value={form.contactInfo} onChange={(e) => setForm({ ...form, contactInfo: e.target.value })} />
+          <Input placeholder="Contact Number" value={form.contactNumber} onChange={(e) => setForm({ ...form, contactNumber: e.target.value })} />
           <Input placeholder="Gender" value={form.gender} onChange={(e) => setForm({ ...form, gender: e.target.value })} />
           <Input type="date" value={form.birthdate} onChange={(e) => setForm({ ...form, birthdate: e.target.value })} />
           <Textarea placeholder="Address" rows={3} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />

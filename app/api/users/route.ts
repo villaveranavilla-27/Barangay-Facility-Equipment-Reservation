@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     if (session?.user?.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     const admins = await prisma.admin.findMany({
       orderBy: { adminId: "desc" },
-      select: { adminId: true, name: true, birthdate: true, gender: true, address: true, username: true, contactInfo: true, email: true }
+      select: { adminId: true, name: true, birthdate: true, gender: true, address: true, username: true, contactNumber: true, email: true }
     });
     return NextResponse.json(admins);
   }
@@ -22,7 +22,7 @@ export async function GET(request: Request) {
   if (session?.user?.role === "ADMIN") {
     const users = await prisma.user.findMany({
       orderBy: { userId: "desc" },
-      select: { userId: true, fullName: true, birthdate: true, gender: true, address: true, username: true, contactInfo: true, email: true }
+      select: { userId: true, name: true, birthdate: true, gender: true, address: true, username: true, contactNumber: true, email: true }
     });
     return NextResponse.json(users);
   }
@@ -30,7 +30,7 @@ export async function GET(request: Request) {
   if (!session?.user?.id) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const user = await prisma.user.findUnique({
     where: { userId: Number(session.user.id) },
-    select: { userId: true, fullName: true, birthdate: true, gender: true, address: true, username: true, contactInfo: true, email: true }
+    select: { userId: true, name: true, birthdate: true, gender: true, address: true, username: true, contactNumber: true, email: true }
   });
   return NextResponse.json(user);
 }
@@ -50,10 +50,10 @@ export async function POST(request: Request) {
       username: data.username,
       email: data.email,
       password: md5(data.password),
-      contactInfo: data.contactInfo,
+      contactNumber: data.contactNumber,
       gender: data.gender,
       birthdate: data.birthdate ? new Date(data.birthdate) : null,
-      address: data.address || ""
+      address: data.address || null
     }
   });
   return NextResponse.json(admin);
@@ -71,15 +71,15 @@ export async function PATCH(request: Request) {
   const updated = await prisma.user.update({
     where: { userId: Number(session.user.id) },
     data: {
-      fullName: data.fullName,
+      name: data.name,
       email: data.email,
-      contactInfo: data.contactInfo,
+      contactNumber: data.contactNumber,
       gender: data.gender,
       birthdate: data.birthdate ? new Date(data.birthdate) : null,
       address: data.address || null,
       ...(data.password ? { password: md5(data.password) } : {})
     },
-    select: { userId: true, fullName: true, birthdate: true, gender: true, address: true, username: true, contactInfo: true, email: true }
+    select: { userId: true, name: true, birthdate: true, gender: true, address: true, username: true, contactNumber: true, email: true }
   });
 
   return NextResponse.json(updated);

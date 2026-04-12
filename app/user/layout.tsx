@@ -10,7 +10,7 @@ export default async function UserLayout({ children }: { children: React.ReactNo
   return (
     <div className="flex min-h-screen bg-[var(--bg)]">
       <Sidebar role="user" />
-      <main className="flex-1 overflow-y-auto p-6">{children}</main>
+      <main className="ml-80 flex-1 overflow-y-auto p-6">{children}</main>
     </div>
   );
 }

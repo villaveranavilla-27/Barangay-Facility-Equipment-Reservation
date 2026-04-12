@@ -15,7 +15,7 @@ export function ReservationReceiptDoc({
 }: {
   reservation: {
     reservationId: number;
-    fullName: string;
+    name: string;
     email: string;
     itemName: string;
     itemType: string;
@@ -35,7 +35,7 @@ export function ReservationReceiptDoc({
         </View>
 
         <View style={styles.row}><Text style={styles.label}>Reservation ID</Text><Text style={styles.value}>{reservation.reservationId}</Text></View>
-        <View style={styles.row}><Text style={styles.label}>Resident Name</Text><Text style={styles.value}>{reservation.fullName}</Text></View>
+        <View style={styles.row}><Text style={styles.label}>Resident Name</Text><Text style={styles.value}>{reservation.name}</Text></View>
         <View style={styles.row}><Text style={styles.label}>Email</Text><Text style={styles.value}>{reservation.email}</Text></View>
         <View style={styles.row}><Text style={styles.label}>Item</Text><Text style={styles.value}>{reservation.itemName} ({reservation.itemType})</Text></View>
         <View style={styles.row}><Text style={styles.label}>Date and Time</Text><Text style={styles.value}>{reservation.startDateTime} - {reservation.endDateTime}</Text></View>

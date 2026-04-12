@@ -6,37 +6,86 @@ import { reservationDecisionSchema } from "@/lib/schemas";
 import { sendMail } from "@/lib/mail";
 import { fmtDateTime } from "@/lib/utils";
 
+function getItemType(reservation: { facilityId: number | null }) {
+  return reservation.facilityId ? "FACILITY" : "EQUIPMENT";
+}
+
+function getItemName(reservation: {
+  facilityId: number | null;
+  facility: { itemName: string } | null;
+  equipment: { itemName: string } | null;
+}) {
+  return reservation.facilityId
+    ? reservation.facility?.itemName ?? ""
+    : reservation.equipment?.itemName ?? "";
+}
+
+function getItemPrice(reservation: {
+  facilityId: number | null;
+  facility: { pricePerDay: number } | null;
+  equipment: { price: unknown } | null;
+}) {
+  return reservation.facilityId
+    ? reservation.facility?.pricePerDay ?? 0
+    : Number(reservation.equipment?.price ?? 0);
+}
+
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   const reservation = await prisma.reservation.findUnique({
     where: { reservationId: Number(params.id) },
-    include: { user: { select: { userId: true, fullName: true, email: true, contactInfo: true } }, facility: true, equipment: true }
+    include: {
+      user: {
+        select: { userId: true, name: true, email: true, contactNumber: true },
+      },
+      facility: true,
+      equipment: true,
+      admin: { select: { adminId: true, name: true } },
+    },
   });
 
-  if (!reservation) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!reservation) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   return NextResponse.json({
     ...reservation,
-    itemName: reservation.itemType === "FACILITY" ? reservation.facility?.itemName : reservation.equipment?.itemName
+    itemType: getItemType(reservation),
+    itemName: getItemName(reservation),
+    itemPrice: getItemPrice(reservation),
+    itemQuantity: reservation.equipment?.quantity ?? null,
+    residentName: reservation.user.name,
+    adminName: reservation.admin?.name ?? null,
   });
 }
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (session?.user?.role !== "ADMIN") {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const parsed = reservationDecisionSchema.safeParse(await request.json());
-  if (!parsed.success) return NextResponse.json({ error: "Invalid data" }, { status: 400 });
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Invalid data" }, { status: 400 });
+  }
 
   const reservation = await prisma.reservation.update({
     where: { reservationId: Number(params.id) },
     data: {
+      adminId: Number(session.user.id),
       status: parsed.data.status,
-      approvedAt: parsed.data.status === "APPROVED" ? new Date() : null
+      approvedAt: parsed.data.status === "APPROVED" ? new Date() : null,
     },
-    include: { user: { select: { userId: true, fullName: true, email: true, contactInfo: true } }, facility: true, equipment: true }
+    include: {
+      user: {
+        select: { userId: true, name: true, email: true, contactNumber: true },
+      },
+      facility: true,
+      equipment: true,
+    },
   });
 
-  const itemName = reservation.itemType === "FACILITY" ? reservation.facility?.itemName : reservation.equipment?.itemName;
+  const itemName = getItemName(reservation);
 
   await sendMail(
     `Reservation ${parsed.data.status.toLowerCase()}`,
@@ -48,5 +97,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
     reservation.user.email
   );
 
-  return NextResponse.json(reservation);
+  return NextResponse.json({
+    ...reservation,
+    itemType: getItemType(reservation),
+    itemName,
+    itemPrice: getItemPrice(reservation),
+    itemQuantity: reservation.equipment?.quantity ?? null,
+    residentName: reservation.user.name,
+  });
 }

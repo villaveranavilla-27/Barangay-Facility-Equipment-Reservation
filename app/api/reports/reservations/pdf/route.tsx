@@ -9,22 +9,25 @@ export async function GET(request: Request) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
 
-  const where = from && to
-    ? { startDateTime: { gte: new Date(from), lte: new Date(to) } }
-    : {};
+  const where =
+    from && to
+      ? { startDateTime: { gte: new Date(from), lte: new Date(to) } }
+      : {};
 
   const reservations = await prisma.reservation.findMany({
     where,
     include: { user: true, facility: true, equipment: true },
-    orderBy: { reservationId: "desc" }
+    orderBy: { reservationId: "desc" },
   });
 
-  const rows = reservations.map((r) => ({
-    id: r.reservationId,
-    name: r.user.fullName,
-    item: r.itemType === "FACILITY" ? r.facility?.itemName ?? "" : r.equipment?.itemName ?? "",
-    status: r.status,
-    date: fmtDate(r.startDateTime)
+  const rows = reservations.map((reservation) => ({
+    id: reservation.reservationId,
+    name: reservation.user.name,
+    item: reservation.facilityId
+      ? reservation.facility?.itemName ?? ""
+      : reservation.equipment?.itemName ?? "",
+    status: reservation.status,
+    date: fmtDate(reservation.startDateTime),
   }));
 
   const doc = (
@@ -38,7 +41,7 @@ export async function GET(request: Request) {
   return new NextResponse(buffer as unknown as BodyInit, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": 'attachment; filename="reservations-summary.pdf"'
-    }
+      "Content-Disposition": 'attachment; filename="reservations-summary.pdf"',
+    },
   });
 }

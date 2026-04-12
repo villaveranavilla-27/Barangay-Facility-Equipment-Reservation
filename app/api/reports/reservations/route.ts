@@ -7,32 +7,47 @@ export async function GET(request: Request) {
   const from = searchParams.get("from");
   const to = searchParams.get("to");
 
-  const where = from && to
-    ? { startDateTime: { gte: new Date(from), lte: new Date(to) } }
-    : {};
+  const where =
+    from && to
+      ? { startDateTime: { gte: new Date(from), lte: new Date(to) } }
+      : {};
 
   const reservations = await prisma.reservation.findMany({
     where,
     include: { user: true, facility: true, equipment: true },
-    orderBy: { reservationId: "desc" }
+    orderBy: { reservationId: "desc" },
   });
 
-  const rows = reservations.map((r) => ({
-    id: r.reservationId,
-    name: r.user.fullName,
-    item: r.itemType === "FACILITY" ? r.facility?.itemName ?? "" : r.equipment?.itemName ?? "",
-    status: r.status,
-    date: fmtDate(r.startDateTime)
+  const rows = reservations.map((reservation) => ({
+    id: reservation.reservationId,
+    name: reservation.user.name,
+    item: reservation.facilityId
+      ? reservation.facility?.itemName ?? ""
+      : reservation.equipment?.itemName ?? "",
+    status: reservation.status,
+    date: fmtDate(reservation.startDateTime),
   }));
 
   const revenue = reservations
-    .filter((r) => r.status === "APPROVED")
-    .reduce((sum, r) => sum + (r.itemType === "FACILITY" ? r.facility?.pricePerDay ?? 0 : r.equipment?.price ?? 0), 0);
+    .filter((reservation) => reservation.status === "APPROVED")
+    .reduce(
+      (sum, reservation) =>
+        sum +
+        (reservation.facilityId
+          ? reservation.facility?.pricePerDay ?? 0
+          : Number(reservation.equipment?.price ?? 0)),
+      0
+    );
 
   const topUsers = Object.values(
-    reservations.reduce<Record<string, { name: string; count: number }>>((acc, r) => {
-      acc[r.user.fullName] = acc[r.user.fullName] || { name: r.user.fullName, count: 0 };
-      if (r.status === "APPROVED") acc[r.user.fullName].count += 1;
+    reservations.reduce<Record<string, { name: string; count: number }>>((acc, reservation) => {
+      acc[reservation.user.name] = acc[reservation.user.name] || {
+        name: reservation.user.name,
+        count: 0,
+      };
+      if (reservation.status === "APPROVED") {
+        acc[reservation.user.name].count += 1;
+      }
       return acc;
     }, {})
   ).sort((a, b) => b.count - a.count);
@@ -41,6 +56,6 @@ export async function GET(request: Request) {
     range: { from, to },
     rows,
     revenue,
-    topUsers
+    topUsers,
   });
 }

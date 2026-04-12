@@ -13,7 +13,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
   const item = await prisma.equipment.update({
     where: { equipmentId: Number(params.id) },
-    data: parsed.data
+    data: parsed.data,
   });
   return NextResponse.json(item);
 }

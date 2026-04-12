@@ -3,8 +3,15 @@
 import { useEffect, useState } from "react";
 import { Badge, Button, Card, Modal, Input, Textarea } from "@/components/common";
 import toast from "react-hot-toast";
-import { fmtDateTime } from "@/lib/utils";
+import { fmtDateTime, money } from "@/lib/utils";
 import Link from "next/link";
+
+function statusTone(status: string): "yellow" | "green" | "red" | "neutral" {
+  if (status === "PENDING") return "yellow";
+  if (status === "APPROVED") return "green";
+  if (status === "DENIED" || status === "CANCELLED") return "red";
+  return "neutral";
+}
 
 export function ReservationsTable({ mode }: { mode: "user" | "admin" }) {
   const [items, setItems] = useState<any[]>([]);
@@ -24,10 +31,10 @@ export function ReservationsTable({ mode }: { mode: "user" | "admin" }) {
     load();
   }, [mode]);
 
-  const filtered = items.filter((r) => {
-    const text = `${r.reservationId} ${r.residentName} ${r.itemName}`.toLowerCase();
+  const filtered = items.filter((reservation) => {
+    const text = `${reservation.reservationId} ${reservation.residentName} ${reservation.itemName}`.toLowerCase();
     const matchesSearch = text.includes(search.toLowerCase());
-    const matchesTab = tab === "ALL" || r.status === tab;
+    const matchesTab = tab === "ALL" || reservation.status === tab;
     return matchesSearch && matchesTab;
   });
 
@@ -46,28 +53,18 @@ export function ReservationsTable({ mode }: { mode: "user" | "admin" }) {
       toast.error("Action failed");
     }
   }
-  // Helper to map reservation status to Badge tone
-function statusTone(status: string): string {
-  const toneMap: Record<string, string> = {
-    PENDING: "warning",
-    APPROVED: "success",
-    DENIED: "danger",
-    // Add other statuses if needed (e.g., CANCELLED, COMPLETED)
-  };
-  return toneMap[status] || "default";
-}
-  // Helper to get button-like classes (copy from your actual Button component)
-  const buttonClasses = "inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors bg-secondary text-secondary-foreground hover:bg-secondary/80";
+
+  const buttonClasses = "inline-flex items-center justify-center rounded- px-3 py-2 text-sm font-medium transition-colors bg-secondary text-secondary-foreground hover:bg-secondary/80";
 
   return (
     <div className="space-y-4">
       <Card>
         <div className="grid gap-3 md:grid-cols-[1fr_auto]">
           <Input placeholder="Search Here" value={search} onChange={(e) => setSearch(e.target.value)} />
-          <div className="flex gap-2">
-            {["ALL", "PENDING", "APPROVED", "DENIED"].map((x) => (
-              <Button key={x} variant={tab === x ? "primary" : "secondary"} onClick={() => setTab(x)}>
-                {x}
+          <div className="flex flex-wrap gap-2">
+            {["ALL", "PENDING", "APPROVED", "DENIED", "CANCELLED"].map((status) => (
+              <Button key={status} variant={tab === status ? "primary" : "secondary"} onClick={() => setTab(status)}>
+                {status}
               </Button>
             ))}
           </div>
@@ -96,7 +93,7 @@ function statusTone(status: string): string {
                   {fmtDateTime(row.startDateTime)} - {fmtDateTime(row.endDateTime)}
                 </td>
                 <td className="py-3 pr-4">
-                  <Badge tone={statusTone(row.status) as any}>{row.status}</Badge>
+                  <Badge tone={statusTone(row.status)}>{row.status}</Badge>
                 </td>
                 <td className="py-3 pr-4">
                   <div className="flex flex-wrap gap-2">
@@ -141,9 +138,15 @@ function statusTone(status: string): string {
             <p><strong>ID:</strong> {view.reservationId}</p>
             <p><strong>Name:</strong> {view.residentName}</p>
             <p><strong>Item:</strong> {view.itemName}</p>
+            <p><strong>Type:</strong> {view.itemType}</p>
             <p><strong>Purpose:</strong> {view.purpose}</p>
             <p><strong>Status:</strong> {view.status}</p>
             <p><strong>Schedule:</strong> {fmtDateTime(view.startDateTime)} - {fmtDateTime(view.endDateTime)}</p>
+            <p><strong>Price:</strong> {money(Number(view.itemPrice || 0))}</p>
+            {view.itemType === "EQUIPMENT" ? (
+              <p><strong>Quantity Available:</strong> {view.itemQuantity ?? "Not set"}</p>
+            ) : null}
+            <p><strong>Expected Attendees:</strong> {view.expectedAttendees ?? "N/A"}</p>
           </div>
         )}
       </Modal>

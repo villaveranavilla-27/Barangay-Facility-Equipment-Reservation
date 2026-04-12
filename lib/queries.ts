@@ -1,31 +1,40 @@
 import { prisma } from "@/lib/prisma";
-import { ReservationStatus } from "@prisma/client";
+import { Prisma, ReservationStatus } from "@prisma/client";
 
 export async function getReservationDetails(id: number) {
   const reservation = await prisma.reservation.findUnique({
     where: { reservationId: id },
-    include: { user: true, facility: true, equipment: true }
+    include: { user: true, facility: true, equipment: true },
   });
-  if (!reservation) return null;
-  const itemName = reservation.itemType === "FACILITY" ? reservation.facility?.itemName : reservation.equipment?.itemName;
-  const price =
-    reservation.itemType === "FACILITY"
-      ? reservation.facility?.pricePerDay ?? 0
-      : reservation.equipment?.price ?? 0;
+
+  if (!reservation) {
+    return null;
+  }
+
+  const itemName = reservation.facilityId
+    ? reservation.facility?.itemName
+    : reservation.equipment?.itemName;
+  const price = reservation.facilityId
+    ? reservation.facility?.pricePerDay ?? 0
+    : Number(reservation.equipment?.price ?? 0);
+
   return { reservation, itemName, price };
 }
 
-export async function listEnrichedReservations(where?: Parameters<typeof prisma.reservation.findMany>[0]["where"]) {
+export async function listEnrichedReservations(where?: Prisma.ReservationWhereInput) {
   const reservations = await prisma.reservation.findMany({
     where,
     orderBy: { reservationId: "desc" },
-    include: { user: true, facility: true, equipment: true }
+    include: { user: true, facility: true, equipment: true },
   });
 
-  return reservations.map((r) => ({
-    ...r,
-    itemName: r.itemType === "FACILITY" ? r.facility?.itemName ?? "" : r.equipment?.itemName ?? "",
-    residentName: r.user.fullName
+  return reservations.map((reservation) => ({
+    ...reservation,
+    itemType: reservation.facilityId ? "FACILITY" : "EQUIPMENT",
+    itemName: reservation.facilityId
+      ? reservation.facility?.itemName ?? ""
+      : reservation.equipment?.itemName ?? "",
+    residentName: reservation.user.name,
   }));
 }
 

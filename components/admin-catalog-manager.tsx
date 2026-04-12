@@ -15,9 +15,8 @@ type Item = {
   description?: string | null;
   status?: string | null;
   pricePerDay?: number | null;
+  price?: number | string | null;
   quantity?: number | null;
-  price?: number | null;
-  category?: string | null;
 };
 
 export function AdminCatalogManager({ kind }: { kind: Kind }) {
@@ -26,14 +25,13 @@ export function AdminCatalogManager({ kind }: { kind: Kind }) {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Item | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
-  const [form, setForm] = useState<any>({
+  const [form, setForm] = useState({
     itemName: "",
     description: "",
     status: "AVAILABLE",
     pricePerDay: "",
-    quantity: "",
     price: "",
-    category: ""
+    quantity: "",
   });
 
   async function load() {
@@ -52,10 +50,9 @@ export function AdminCatalogManager({ kind }: { kind: Kind }) {
         itemName: editing.itemName || "",
         description: editing.description || "",
         status: editing.status || "AVAILABLE",
-        pricePerDay: editing.pricePerDay ?? "",
-        quantity: editing.quantity ?? "",
-        price: editing.price ?? "",
-        category: editing.category || ""
+        pricePerDay: editing.pricePerDay?.toString() ?? "",
+        price: editing.price?.toString() ?? "",
+        quantity: editing.quantity?.toString() ?? "",
       });
       setOpen(true);
     }
@@ -75,20 +72,19 @@ export function AdminCatalogManager({ kind }: { kind: Kind }) {
             itemName: form.itemName,
             description: form.description,
             status: form.status,
-            pricePerDay: Number(form.pricePerDay || 0)
+            pricePerDay: Number(form.pricePerDay || 0),
           }
         : {
             itemName: form.itemName,
             description: form.description,
-            category: form.category,
-            quantity: Number(form.quantity || 0),
-            price: Number(form.price || 0)
+            price: form.price === "" ? null : Number(form.price),
+            quantity: form.quantity === "" ? null : Number(form.quantity),
           };
 
     const res = await fetch(id ? `${endpoint}/${id}` : endpoint, {
       method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
     });
 
     if (!res.ok) {
@@ -99,14 +95,21 @@ export function AdminCatalogManager({ kind }: { kind: Kind }) {
     toast.success(editing ? "Updated" : "Created");
     setOpen(false);
     setEditing(null);
-    setForm({ itemName: "", description: "", status: "AVAILABLE", pricePerDay: "", quantity: "", price: "", category: "" });
+    setForm({
+      itemName: "",
+      description: "",
+      status: "AVAILABLE",
+      pricePerDay: "",
+      price: "",
+      quantity: "",
+    });
     await load();
   }
 
   async function remove() {
     if (!deleteId) return;
     const res = await fetch(`${kind === "facility" ? "/api/facilities" : "/api/equipment"}/${deleteId}`, {
-      method: "DELETE"
+      method: "DELETE",
     });
     if (res.ok) {
       toast.success("Deleted");
@@ -134,6 +137,8 @@ export function AdminCatalogManager({ kind }: { kind: Kind }) {
       <div className="grid gap-4 lg:grid-cols-2">
         {filtered.map((item) => {
           const id = item.facilityId || item.equipmentId || 0;
+          const equipmentPrice = item.price == null ? null : Number(item.price);
+
           return (
             <Card key={id}>
               <div className="flex items-start justify-between gap-4">
@@ -153,13 +158,24 @@ export function AdminCatalogManager({ kind }: { kind: Kind }) {
               </div>
 
               <div className="mt-4 flex flex-wrap gap-3 text-sm">
-                <div className="rounded-full bg-brand-50 px-3 py-1 text-brand-600">
-                  {kind === "facility" ? money(item.pricePerDay || 0) : money(item.price || 0)}
-                </div>
                 {kind === "facility" ? (
-                  <div className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">{item.status}</div>
+                  <>
+                    <div className="rounded-full bg-brand-50 px-3 py-1 text-brand-600">
+                      {money(item.pricePerDay || 0)}
+                    </div>
+                    <div className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                      {item.status}
+                    </div>
+                  </>
                 ) : (
-                  <div className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">Qty: {item.quantity ?? 0}</div>
+                  <>
+                    <div className="rounded-full bg-brand-50 px-3 py-1 text-brand-600">
+                      {equipmentPrice == null ? "No price set" : money(equipmentPrice)}
+                    </div>
+                    <div className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                      Qty: {item.quantity ?? "Not set"}
+                    </div>
+                  </>
                 )}
               </div>
             </Card>
@@ -193,22 +209,18 @@ export function AdminCatalogManager({ kind }: { kind: Kind }) {
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Price per day</label>
-                <Input type="number" value={form.pricePerDay} onChange={(e) => setForm({ ...form, pricePerDay: e.target.value })} />
+                <Input type="number" min="0" value={form.pricePerDay} onChange={(e) => setForm({ ...form, pricePerDay: e.target.value })} />
               </div>
             </>
           ) : (
             <>
               <div>
-                <label className="mb-1 block text-sm font-medium">Category</label>
-                <Input value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+                <label className="mb-1 block text-sm font-medium">Price</label>
+                <Input type="number" min="0" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
               </div>
               <div>
                 <label className="mb-1 block text-sm font-medium">Quantity</label>
-                <Input type="number" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
-              </div>
-              <div>
-                <label className="mb-1 block text-sm font-medium">Price</label>
-                <Input type="number" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
+                <Input type="number" min="0" value={form.quantity} onChange={(e) => setForm({ ...form, quantity: e.target.value })} />
               </div>
             </>
           )}

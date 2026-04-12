@@ -41,3 +41,17 @@ input, select, textarea, button {
 table {
   border-collapse: collapse;
 }
+/* Prevent background from scrolling */
+html, body {
+  height: 100%;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* The scrollable main content area */
+.scrollable-content {
+  height: 100%;
+  overflow-y: auto;
+  padding: 1rem; /* optional, adjust as needed */
+}

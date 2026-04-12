@@ -4,11 +4,23 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { Button, Card, Input, Select, Textarea } from "@/components/common";
+import { money } from "@/lib/utils";
+
+type CatalogItem = {
+  id: number;
+  type: "FACILITY" | "EQUIPMENT";
+  itemName: string;
+  description?: string | null;
+  status?: string | null;
+  pricePerDay?: number | null;
+  price?: number | string | null;
+  quantity?: number | null;
+};
 
 export function ReservationForm({ userId }: { userId: number }) {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<CatalogItem[]>([]);
   const [form, setForm] = useState({
     itemType: "FACILITY",
     facilityId: "",
@@ -16,14 +28,22 @@ export function ReservationForm({ userId }: { userId: number }) {
     startDateTime: "",
     endDateTime: "",
     purpose: "",
-    expectedAttendees: ""
+    expectedAttendees: "",
   });
 
   useEffect(() => {
     Promise.all([fetch("/api/facilities").then((r) => r.json()), fetch("/api/equipment").then((r) => r.json())]).then(([facilities, equipment]) => {
       setItems([
-        ...facilities.map((f: any) => ({ ...f, type: "FACILITY", id: f.facilityId })),
-        ...equipment.map((e: any) => ({ ...e, type: "EQUIPMENT", id: e.equipmentId }))
+        ...facilities.map((facility: any) => ({
+          ...facility,
+          type: "FACILITY" as const,
+          id: facility.facilityId,
+        })),
+        ...equipment.map((item: any) => ({
+          ...item,
+          type: "EQUIPMENT" as const,
+          id: item.equipmentId,
+        })),
       ]);
     });
   }, []);
@@ -36,19 +56,20 @@ export function ReservationForm({ userId }: { userId: number }) {
     const purpose = searchParams.get("purpose");
     const expected = searchParams.get("expectedAttendees");
 
-    if (type) setForm((p) => ({ ...p, itemType: type }));
+    if (type) setForm((previous) => ({ ...previous, itemType: type }));
     if (id) {
-      if (type === "EQUIPMENT") setForm((p) => ({ ...p, equipmentId: id }));
-      else setForm((p) => ({ ...p, facilityId: id }));
+      if (type === "EQUIPMENT") setForm((previous) => ({ ...previous, equipmentId: id }));
+      else setForm((previous) => ({ ...previous, facilityId: id }));
     }
-    if (start) setForm((p) => ({ ...p, startDateTime: start }));
-    if (end) setForm((p) => ({ ...p, endDateTime: end }));
-    if (purpose) setForm((p) => ({ ...p, purpose }));
-    if (expected) setForm((p) => ({ ...p, expectedAttendees: expected }));
+    if (start) setForm((previous) => ({ ...previous, startDateTime: start }));
+    if (end) setForm((previous) => ({ ...previous, endDateTime: end }));
+    if (purpose) setForm((previous) => ({ ...previous, purpose }));
+    if (expected) setForm((previous) => ({ ...previous, expectedAttendees: expected }));
   }, [searchParams]);
 
   const selectedItem = useMemo(() => {
-    return items.find((item) => String(item.id) === (form.itemType === "FACILITY" ? form.facilityId : form.equipmentId));
+    const selectedId = form.itemType === "FACILITY" ? form.facilityId : form.equipmentId;
+    return items.find((item) => String(item.id) === selectedId);
   }, [items, form]);
 
   async function submit(e: React.FormEvent) {
@@ -64,8 +85,8 @@ export function ReservationForm({ userId }: { userId: number }) {
         endDateTime: form.endDateTime,
         purpose: form.purpose,
         expectedAttendees: form.expectedAttendees ? Number(form.expectedAttendees) : null,
-        userId
-      })
+        userId,
+      }),
     });
 
     const data = await res.json();
@@ -80,10 +101,10 @@ export function ReservationForm({ userId }: { userId: number }) {
   }
 
   return (
-    <Card className="mx-auto max-w-3xl">
+    <Card className="mx-auto max-w-6xl">
       <form className="space-y-4" onSubmit={submit}>
         <div>
-          <label className="mb-1 block text-sm font-medium">Item Type</label>
+          <label className="mb-1 block text-[20px] font-medium">Item Type</label>
           <Select value={form.itemType} onChange={(e) => setForm({ ...form, itemType: e.target.value, facilityId: "", equipmentId: "" })}>
             <option value="FACILITY">Facility</option>
             <option value="EQUIPMENT">Equipment</option>
@@ -91,39 +112,68 @@ export function ReservationForm({ userId }: { userId: number }) {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">Select Item</label>
+          <label className="mb-1 block text-[20px] font-medium">Select Item</label>
           <Select
             value={form.itemType === "FACILITY" ? form.facilityId : form.equipmentId}
             onChange={(e) => setForm(form.itemType === "FACILITY" ? { ...form, facilityId: e.target.value } : { ...form, equipmentId: e.target.value })}
             required
           >
             <option value="">Choose one</option>
-            {items.filter((item) => item.type === form.itemType).map((item) => (
-              <option key={`${item.type}-${item.id}`} value={item.id}>{item.itemName}</option>
-            ))}
+            {items
+              .filter((item) => item.type === form.itemType)
+              .map((item) => (
+                <option
+                  key={`${item.type}-${item.id}`}
+                  value={item.id}
+                  disabled={item.type === "FACILITY" && item.status === "UNDER_MAINTENANCE"}
+                >
+                  {item.itemName}
+                  {item.type === "FACILITY" && item.status === "UNDER_MAINTENANCE"
+                    ? " (Under maintenance)"
+                    : ""}
+                </option>
+              ))}
           </Select>
-          {selectedItem ? <p className="mt-1 text-sm text-text-secondary">{selectedItem.description}</p> : null}
+          {selectedItem ? (
+            <div className="mt-2 space-y-1 rounded-xl bg-slate-50 p-3 text-sm text-text-secondary">
+              <p>{selectedItem.description || "No description provided."}</p>
+              {selectedItem.type === "FACILITY" ? (
+                <>
+                  <p>Rate: {money(selectedItem.pricePerDay || 0)} per day</p>
+                  <p>Status: {selectedItem.status ?? "AVAILABLE"}</p>
+                </>
+              ) : (
+                <>
+                  <p>
+                    Price:{" "}
+                    {selectedItem.price == null ? "Not set" : money(Number(selectedItem.price))}
+                  </p>
+                  <p>Available quantity: {selectedItem.quantity ?? "Not set"}</p>
+                </>
+              )}
+            </div>
+          ) : null}
         </div>
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-1 block text-sm font-medium">Start Date & Time</label>
+            <label className="mb-1 block text-[20px] font-medium">Start Date & Time</label>
             <Input type="datetime-local" value={form.startDateTime} onChange={(e) => setForm({ ...form, startDateTime: e.target.value })} required />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium">End Date & Time</label>
+            <label className="mb-1 block text-[20px]  font-medium">End Date & Time</label>
             <Input type="datetime-local" value={form.endDateTime} onChange={(e) => setForm({ ...form, endDateTime: e.target.value })} required />
           </div>
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">Purpose</label>
+          <label className="mb-1 block text-[20px] font-medium">Purpose</label>
           <Textarea rows={3} value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} required />
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium">Expected Attendees</label>
-          <Input type="number" value={form.expectedAttendees} onChange={(e) => setForm({ ...form, expectedAttendees: e.target.value })} />
+          <label className="mb-1 block text-[20px] font-medium">Expected Attendees</label>
+          <Input type="number" min="1" value={form.expectedAttendees} onChange={(e) => setForm({ ...form, expectedAttendees: e.target.value })} />
         </div>
 
         <Button type="submit">Submit Reservation</Button>

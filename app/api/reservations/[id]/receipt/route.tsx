@@ -7,24 +7,32 @@ import { fmtDateTime } from "@/lib/utils";
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   const reservation = await prisma.reservation.findUnique({
     where: { reservationId: Number(params.id) },
-    include: { user: { select: { userId: true, fullName: true, email: true, contactInfo: true } }, facility: true, equipment: true }
+    include: {
+      user: { select: { userId: true, name: true, email: true, contactNumber: true } },
+      facility: true,
+      equipment: true,
+    },
   });
 
-  if (!reservation) return NextResponse.json({ error: "Not found" }, { status: 404 });
+  if (!reservation) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
 
   const doc = (
     <ReservationReceiptDoc
       reservation={{
         reservationId: reservation.reservationId,
-        fullName: reservation.user.fullName,
+        name: reservation.user.name,
         email: reservation.user.email,
-        itemName: reservation.itemType === "FACILITY" ? reservation.facility?.itemName ?? "" : reservation.equipment?.itemName ?? "",
-        itemType: reservation.itemType,
+        itemName: reservation.facilityId
+          ? reservation.facility?.itemName ?? ""
+          : reservation.equipment?.itemName ?? "",
+        itemType: reservation.facilityId ? "FACILITY" : "EQUIPMENT",
         startDateTime: fmtDateTime(reservation.startDateTime),
         endDateTime: fmtDateTime(reservation.endDateTime),
         purpose: reservation.purpose,
         status: reservation.status,
-        approvedAt: reservation.approvedAt ? fmtDateTime(reservation.approvedAt) : null
+        approvedAt: reservation.approvedAt ? fmtDateTime(reservation.approvedAt) : null,
       }}
     />
   );
@@ -33,7 +41,7 @@ export async function GET(_request: Request, { params }: { params: { id: string 
   return new NextResponse(buffer as unknown as BodyInit, {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="reservation-${reservation.reservationId}.pdf"`
-    }
+      "Content-Disposition": `attachment; filename="reservation-${reservation.reservationId}.pdf"`,
+    },
   });
 }

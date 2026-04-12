@@ -1,20 +1,25 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Card, StatCard, Button } from "@/components/common";
+import { Card, StatCard, Button, Badge } from "@/components/common";
+
+const RECENT_ACTIVITY_LIMIT = 5;
 
 export default function UserDashboardPage() {
-  const [data, setData] = useState<any>({ pending: 0, announcements: 0 });
+  const [data, setData] = useState({ pending: 0, approved: 0, announcements: 0 });
+  const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   useEffect(() => {
     fetch("/api/reservations")
       .then((res) => res.json())
       .then((rows) => {
+        const userRows = Array.isArray(rows) ? rows : [];
         setData({
-          pending: rows.filter((r: any) => r.status === "PENDING").length,
-          approved: rows.filter((r: any) => r.status === "APPROVED").length,
-          announcements: 1
+          pending: userRows.filter((r: any) => r.status === "PENDING").length,
+          approved: userRows.filter((r: any) => r.status === "APPROVED").length,
+          announcements: 1,
         });
+        setRecentActivity(userRows.slice(0, RECENT_ACTIVITY_LIMIT));
       });
   }, []);
 
@@ -36,6 +41,50 @@ export default function UserDashboardPage() {
           <Button href="/user/reservations" className="w-full">Track Status</Button>
           <Button href="/user/calendar" className="w-full">Live Calendar</Button>
         </div>
+      </Card>
+      <Card>
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold">Recent Activity</h2>
+            <p className="mt-1 text-sm text-text-secondary">Only your reservation activity is shown here.</p>
+          </div>
+          <Button href="/user/reservations" variant="secondary" className="h-10 self-start">
+            View all reservations
+          </Button>
+        </div>
+
+        {recentActivity.length === 0 ? (
+          <p className="mt-6 text-sm text-text-secondary">No recent activity yet. Create a reservation to see it here.</p>
+        ) : (
+          <div className="mt-6 space-y-4">
+            {recentActivity.map((item: any) => (
+              <div key={item.reservationId} className="rounded-2xl border border-border bg-slate-50 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <div className="text-sm font-semibold text-text-primary">{item.itemName || item.itemType}</div>
+                    <div className="mt-1 text-sm text-text-secondary">
+                      {item.itemType} • {new Date(item.startDateTime).toLocaleString()} - {new Date(item.endDateTime).toLocaleString()}
+                    </div>
+                  </div>
+                  <Badge
+                    tone={
+                      item.status === "APPROVED"
+                        ? "green"
+                        : item.status === "PENDING"
+                        ? "yellow"
+                        : item.status === "DENIED"
+                        ? "red"
+                        : "neutral"
+                    }
+                  >
+                    {item.status}
+                  </Badge>
+                </div>
+                {item.purpose ? <p className="mt-3 text-sm text-text-secondary">Purpose: {item.purpose}</p> : null}
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
     </div>
   );

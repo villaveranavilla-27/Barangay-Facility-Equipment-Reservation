@@ -4,24 +4,35 @@ import { prisma } from "@/lib/prisma";
 export async function GET() {
   const reservations = await prisma.reservation.findMany({
     where: { status: "APPROVED" },
-    include: { facility: true, equipment: true, user: { select: { userId: true, fullName: true, email: true, contactInfo: true } } },
-    orderBy: { startDateTime: "asc" }
+    include: {
+      facility: true,
+      equipment: true,
+      user: { select: { userId: true, name: true, email: true, contactNumber: true } },
+    },
+    orderBy: { startDateTime: "asc" },
   });
 
-  const events = reservations.map((r) => ({
-    id: String(r.reservationId),
-    title: `${r.itemType === "FACILITY" ? r.facility?.itemName : r.equipment?.itemName} • ${r.user.fullName}`,
-    start: r.startDateTime,
-    end: r.endDateTime,
-    extendedProps: {
-      status: r.status,
-      purpose: r.purpose,
-      expectedAttendees: r.expectedAttendees,
-      residentName: r.user.fullName,
-      itemType: r.itemType,
-      itemName: r.itemType === "FACILITY" ? r.facility?.itemName : r.equipment?.itemName
-    }
-  }));
+  const events = reservations.map((reservation) => {
+    const itemType = reservation.facilityId ? "FACILITY" : "EQUIPMENT";
+    const itemName = reservation.facilityId
+      ? reservation.facility?.itemName
+      : reservation.equipment?.itemName;
+
+    return {
+      id: String(reservation.reservationId),
+      title: `${itemName} - ${reservation.user.name}`,
+      start: reservation.startDateTime,
+      end: reservation.endDateTime,
+      extendedProps: {
+        status: reservation.status,
+        purpose: reservation.purpose,
+        expectedAttendees: reservation.expectedAttendees,
+        residentName: reservation.user.name,
+        itemType,
+        itemName,
+      },
+    };
+  });
 
   return NextResponse.json(events);
 }

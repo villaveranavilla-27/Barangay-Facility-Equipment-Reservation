@@ -16,6 +16,11 @@ export async function POST(request: Request) {
   const parsed = facilitySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: "Invalid data" }, { status: 400 });
 
-  const facility = await prisma.facility.create({ data: parsed.data });
+  const facility = await prisma.facility.create({
+    data: {
+      ...parsed.data,
+      adminId: Number(session.user.id),
+    },
+  });
   return NextResponse.json(facility);
 }

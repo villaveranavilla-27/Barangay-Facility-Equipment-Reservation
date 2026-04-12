@@ -27,11 +27,11 @@ export function ProfileForm() {
   if (!form) return <Card>Loading...</Card>;
 
   return (
-    <Card className="max-w-3xl">
+    <Card className="max-w-[1300px]">
       <form className="space-y-4" onSubmit={save}>
         <div>
           <label className="mb-1 block text-sm font-medium">Full Name</label>
-          <Input value={form.fullName || ""} onChange={(e) => setForm({ ...form, fullName: e.target.value })} />
+          <Input value={form.name || ""} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </div>
         <div className="grid gap-4 md:grid-cols-2">
           <div>
@@ -40,7 +40,7 @@ export function ProfileForm() {
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium">Contact Number</label>
-            <Input value={form.contactInfo || ""} onChange={(e) => setForm({ ...form, contactInfo: e.target.value })} />
+            <Input value={form.contactNumber || ""} onChange={(e) => setForm({ ...form, contactNumber: e.target.value })} />
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
