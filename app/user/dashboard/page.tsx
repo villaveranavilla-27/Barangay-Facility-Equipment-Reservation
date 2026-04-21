@@ -6,7 +6,7 @@ import { Card, StatCard, Button, Badge } from "@/components/common";
 const RECENT_ACTIVITY_LIMIT = 5;
 
 export default function UserDashboardPage() {
-  const [data, setData] = useState({ pending: 0, approved: 0, announcements: 0 });
+  const [data, setData] = useState({ pending: 0, approved: 0 });
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   useEffect(() => {
@@ -17,7 +17,6 @@ export default function UserDashboardPage() {
         setData({
           pending: userRows.filter((r: any) => r.status === "PENDING").length,
           approved: userRows.filter((r: any) => r.status === "APPROVED").length,
-          announcements: 1,
         });
         setRecentActivity(userRows.slice(0, RECENT_ACTIVITY_LIMIT));
       });
@@ -29,11 +28,12 @@ export default function UserDashboardPage() {
         <h1 className="text-3xl font-semibold">Dashboard</h1>
         <p className="mt-1 text-text-secondary">Welcome back. Manage your barangay requests here.</p>
       </div>
-      <div className="grid gap-4 md:grid-cols-3">
+
+      <div className="grid gap-4 md:grid-cols-2">
         <StatCard label="Pending Requests" value={String(data.pending)} />
         <StatCard label="Approved Requests" value={String(data.approved)} />
-        <StatCard label="Announcements" value={String(data.announcements)} />
       </div>
+
       <Card>
         <div className="grid gap-3 md:grid-cols-4">
           <Button href="/user/facilities" className="w-full">View Facilities</Button>
@@ -42,6 +42,7 @@ export default function UserDashboardPage() {
           <Button href="/user/calendar" className="w-full">Live Calendar</Button>
         </div>
       </Card>
+
       <Card>
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>

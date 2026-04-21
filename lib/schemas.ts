@@ -17,6 +17,14 @@ const optionalNonNegativeInt = z.preprocess((value) => {
   return typeof value === "string" ? Number(value) : value;
 }, z.number().int().nonnegative().nullable());
 
+const optionalPositiveInt = z.preprocess((value) => {
+  if (value === "" || value === null || value === undefined) {
+    return null;
+  }
+
+  return typeof value === "string" ? Number(value) : value;
+}, z.number().int().positive().nullable());
+
 export const loginSchema = z.object({
   identifier: z.string().min(1),
   password: z.string().min(4),
@@ -75,6 +83,7 @@ export const reservationSchema = z
     itemType: z.enum(["FACILITY", "EQUIPMENT"]),
     facilityId: z.coerce.number().int().positive().nullable().optional(),
     equipmentId: z.coerce.number().int().positive().nullable().optional(),
+    equipmentQuantity: optionalPositiveInt.optional(),
     startDateTime: z.string().min(1),
     endDateTime: z.string().min(1),
     purpose: z.string().min(2),
@@ -94,6 +103,22 @@ export const reservationSchema = z
         code: z.ZodIssueCode.custom,
         message: "Equipment is required",
         path: ["equipmentId"],
+      });
+    }
+
+    if (data.itemType === "EQUIPMENT" && !data.equipmentQuantity) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Requested quantity is required",
+        path: ["equipmentQuantity"],
+      });
+    }
+
+    if (data.itemType === "FACILITY" && data.equipmentQuantity) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Requested quantity is only allowed for equipment reservations",
+        path: ["equipmentQuantity"],
       });
     }
 
@@ -126,7 +151,17 @@ export const reservationSchema = z
     }
   });
 
-export const reservationDecisionSchema = z.object({
-  status: z.enum([ReservationStatus.APPROVED, ReservationStatus.DENIED]),
-  adminNotes: z.string().trim().optional(),
-});
+export const reservationAdminActionSchema = z
+  .object({
+    status: z.enum([ReservationStatus.APPROVED, ReservationStatus.DENIED, "RETURNED"]),
+    adminNotes: z.string().trim().optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.status === ReservationStatus.DENIED && !data.adminNotes) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "A denial reason is required",
+        path: ["adminNotes"],
+      });
+    }
+  });

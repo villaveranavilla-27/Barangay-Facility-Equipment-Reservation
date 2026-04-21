@@ -32,7 +32,7 @@ export const authOptions: NextAuthOptions = {
         const { identifier, password, intendedRole } = parsed.data;
         const normalizedIdentifier = identifier.trim();
 
-        if (intendedRole === "admin") {
+        if (intendedRole?.toLowerCase() === "admin") {
           const admin = await prisma.admin.findFirst({
             where: {
               OR: [{ email: normalizedIdentifier }, { username: normalizedIdentifier }],
@@ -81,27 +81,29 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = user.role;
-        token.email = user.email;
-        token.name = user.name;
-      }
+  async jwt({ token, user }) {
+    // Runs on sign in
+    if (user) {
+      token.id = user.id;
+      token.role = user.role ?? "USER";
+      token.email = user.email ?? null;
+      token.name = user.name ?? null;
+    }
 
-      return token;
-    },
-    async session({ session, token }) {
-      if (session.user) {
-        session.user.id = String(token.id ?? "");
-        session.user.role = token.role as "ADMIN" | "USER";
-        session.user.email = token.email ?? session.user.email ?? "";
-        session.user.name = token.name ?? session.user.name ?? "";
-      }
-
-      return session;
-    },
+    return token;
   },
+
+  async session({ session, token }) {
+    if (session.user) {
+      session.user.id = (token.id as string) ?? "";
+      session.user.role = (token.role as "ADMIN" | "USER") ?? "USER";
+      session.user.email = (token.email as string) ?? session.user.email ?? "";
+      session.user.name = (token.name as string) ?? session.user.name ?? "";
+    }
+
+    return session;
+  },
+},
   pages: {
     signIn: "/login",
     error: "/login",

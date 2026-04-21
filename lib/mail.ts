@@ -6,11 +6,15 @@ export async function sendMail(subject: string, html: string, to?: string) {
     return;
   }
 
-  const transporter = nodemailer.createTransport(process.env.EMAIL_SERVER);
-  await transporter.sendMail({
-    from: process.env.EMAIL_FROM,
-    to: to || process.env.EMAIL_FROM,
-    subject,
-    html
-  });
+  try {
+    const transporter = nodemailer.createTransport(process.env.EMAIL_SERVER);
+    await transporter.sendMail({
+      from: process.env.EMAIL_FROM,
+      to: to || process.env.EMAIL_FROM,
+      subject,
+      html,
+    });
+  } catch (error) {
+    console.error("[mail failed]", subject, error);
+  }
 }

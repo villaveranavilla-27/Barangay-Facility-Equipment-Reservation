@@ -4,41 +4,17 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { reservationSchema } from "@/lib/schemas";
 import { sendMail } from "@/lib/mail";
-import { fmtDateTime } from "@/lib/utils";
-
-function getItemType(reservation: { facilityId: number | null }) {
-  return reservation.facilityId ? "FACILITY" : "EQUIPMENT";
-}
-
-function getItemName(reservation: {
-  facilityId: number | null;
-  facility: { itemName: string } | null;
-  equipment: { itemName: string } | null;
-}) {
-  return reservation.facilityId
-    ? reservation.facility?.itemName ?? ""
-    : reservation.equipment?.itemName ?? "";
-}
-
-function getItemPrice(reservation: {
-  facilityId: number | null;
-  facility: { pricePerDay: number } | null;
-  equipment: { price: unknown } | null;
-}) {
-  return reservation.facilityId
-    ? reservation.facility?.pricePerDay ?? 0
-    : Number(reservation.equipment?.price ?? 0);
-}
+import { buildAdminReservationRequestEmail } from "@/lib/reservation-emails";
+import { serializeReservation } from "@/lib/reservations";
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
-  const { searchParams } = new URL(request.url);
-  const scope = searchParams.get("scope");
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
   const where =
-    session?.user?.role === "ADMIN" || scope === "all"
-      ? {}
-      : { userId: Number(session?.user?.id || 0) };
+    session.user.role === "ADMIN" ? {} : { userId: Number(session.user.id) };
 
   const reservations = await prisma.reservation.findMany({
     where,
@@ -53,15 +29,7 @@ export async function GET(request: Request) {
     },
   });
 
-  const data = reservations.map((reservation) => ({
-    ...reservation,
-    itemType: getItemType(reservation),
-    itemName: getItemName(reservation),
-    itemPrice: getItemPrice(reservation),
-    itemQuantity: reservation.equipment?.quantity ?? null,
-    residentName: reservation.user.name,
-    adminName: reservation.admin?.name ?? null,
-  }));
+  const data = reservations.map((reservation) => serializeReservation(reservation));
 
   return NextResponse.json(data);
 }
@@ -108,11 +76,22 @@ export async function POST(request: Request) {
   if (data.itemType === "EQUIPMENT") {
     const equipment = await prisma.equipment.findUnique({
       where: { equipmentId: Number(data.equipmentId) },
-      select: { equipmentId: true },
+      select: { equipmentId: true, quantity: true },
     });
 
     if (!equipment) {
       return NextResponse.json({ error: "Equipment not found" }, { status: 404 });
+    }
+
+    if (
+      equipment.quantity !== null &&
+      data.equipmentQuantity &&
+      data.equipmentQuantity > equipment.quantity
+    ) {
+      return NextResponse.json(
+        { error: "Requested quantity exceeds the available quantity" },
+        { status: 400 }
+      );
     }
   }
 
@@ -126,6 +105,9 @@ export async function POST(request: Request) {
       endDateTime: new Date(data.endDateTime),
       purpose: data.purpose,
       expectedAttendees: data.expectedAttendees ?? null,
+      equipmentQuantity:
+        data.itemType === "EQUIPMENT" ? data.equipmentQuantity ?? null : null,
+      adminNotes: null,
     },
     include: {
       user: {
@@ -136,18 +118,36 @@ export async function POST(request: Request) {
     },
   });
 
-  const itemName = getItemName(reservation);
-  await sendMail(
-    "New reservation request",
-    `<p>New reservation received from <strong>${reservation.user.name}</strong>.</p>
-     <p>Item: ${itemName}</p>
-     <p>Schedule: ${fmtDateTime(reservation.startDateTime)} - ${fmtDateTime(reservation.endDateTime)}</p>
-     <p>Purpose: ${reservation.purpose}</p>`
-  );
+  const adminRecipients = await prisma.admin.findMany({
+    select: { email: true },
+  });
+
+  const seenEmails = new Set<string>();
+  const uniqueAdminEmails = adminRecipients
+    .map((admin) => admin.email.trim())
+    .filter((email) => {
+      if (!email) {
+        return false;
+      }
+
+      const normalizedEmail = email.toLowerCase();
+      if (seenEmails.has(normalizedEmail)) {
+        return false;
+      }
+
+      seenEmails.add(normalizedEmail);
+      return true;
+    });
+
+  if (uniqueAdminEmails.length > 0) {
+    const message = buildAdminReservationRequestEmail(reservation);
+    await Promise.all(
+      uniqueAdminEmails.map((email) => sendMail(message.subject, message.html, email))
+    );
+  }
 
   return NextResponse.json({
     ok: true,
-    reservationId: reservation.reservationId,
-    residentName: reservation.user.name,
+    ...serializeReservation(reservation),
   });
 }

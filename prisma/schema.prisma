@@ -19,6 +19,11 @@ enum ReservationStatus {
   CANCELLED
 }
 
+enum EquipmentReturnStatus {
+  BORROWED
+  RETURNED
+}
+
 model Admin {
   adminId       Int           @id @default(autoincrement()) @map("Admin_ID")
   name          String        @db.VarChar(191) @map("Name")
@@ -90,7 +95,11 @@ model Reservation {
   purpose           String            @db.VarChar(191) @map("Purpose")
   status            ReservationStatus @default(PENDING) @map("Status")
   expectedAttendees Int?              @map("Expected_Attendees")
+  equipmentQuantity Int?              @map("Equipment_Quantity")
   approvedAt        DateTime?         @map("ApprovedAt")
+  returnedAt        DateTime?         @map("ReturnedAt")
+  returnStatus      EquipmentReturnStatus? @map("Return_Status")
+  adminNotes        String?           @db.VarChar(191) @map("Admin_Notes")
   user              User              @relation(fields: [userId], references: [userId], onDelete: Restrict, onUpdate: Cascade)
   equipment         Equipment?        @relation(fields: [equipmentId], references: [equipmentId], onDelete: SetNull, onUpdate: Cascade)
   admin             Admin?            @relation(fields: [adminId], references: [adminId], onDelete: SetNull, onUpdate: Cascade)

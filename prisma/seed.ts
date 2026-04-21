@@ -1,7 +1,17 @@
-import { PrismaClient, FacilityStatus, ReservationStatus } from "@prisma/client";
-import { md5 } from "../lib/utils";
+import {
+  PrismaClient,
+  EquipmentReturnStatus,
+  FacilityStatus,
+  ReservationStatus,
+} from "@prisma/client";
+import crypto from "crypto";
 
 const prisma = new PrismaClient();
+
+// MD5 replacement (safe for Node runtime)
+function md5(value: string) {
+  return crypto.createHash("md5").update(value).digest("hex");
+}
 
 const demoAdmin = {
   name: "Admin",
@@ -37,12 +47,14 @@ const demoEquipment = [
 
 async function main() {
   const result = await prisma.$transaction(async (tx) => {
+    // clear existing data
     await tx.reservation.deleteMany();
     await tx.equipment.deleteMany();
     await tx.facility.deleteMany();
     await tx.admin.deleteMany();
     await tx.user.deleteMany();
 
+    // create admin
     const admin = await tx.admin.create({
       data: {
         name: demoAdmin.name,
@@ -56,6 +68,7 @@ async function main() {
       },
     });
 
+    // create user
     const user = await tx.user.create({
       data: {
         name: demoUser.name,
@@ -69,6 +82,7 @@ async function main() {
       },
     });
 
+    // create facility
     const facility = await tx.facility.create({
       data: {
         adminId: admin.adminId,
@@ -79,6 +93,7 @@ async function main() {
       },
     });
 
+    // create equipment
     const equipment = await Promise.all(
       demoEquipment.map((item) =>
         tx.equipment.create({
@@ -93,6 +108,7 @@ async function main() {
       )
     );
 
+    // reservation 1 (facility)
     await tx.reservation.create({
       data: {
         userId: user.userId,
@@ -107,6 +123,7 @@ async function main() {
       },
     });
 
+    // reservation 2 (equipment)
     await tx.reservation.create({
       data: {
         userId: user.userId,
@@ -117,8 +134,19 @@ async function main() {
         endDateTime: new Date(Date.now() + 86400000 * 3 + 2 * 3600000),
         purpose: "Event setup",
         expectedAttendees: 100,
+        equipmentQuantity: 2,
         status: ReservationStatus.APPROVED,
         approvedAt: new Date(),
+        returnStatus: EquipmentReturnStatus.BORROWED,
+      },
+    });
+
+    await tx.equipment.update({
+      where: { equipmentId: equipment[0].equipmentId },
+      data: {
+        quantity: {
+          decrement: 2,
+        },
       },
     });
 

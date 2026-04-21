@@ -103,8 +103,10 @@ export function Textarea(
 export function Badge({
   children,
   tone = "neutral",
+  className,
 }: React.PropsWithChildren<{
   tone?: "neutral" | "yellow" | "green" | "red" | "blue";
+  className?: string;
 }>) {
   const tones: Record<string, string> = {
     neutral: "bg-slate-100 text-slate-700",
@@ -118,7 +120,8 @@ export function Badge({
     <span
       className={cn(
         "rounded-full px-3 py-1 text-xs font-semibold",
-        tones[tone]
+        tones[tone],
+        className
       )}
     >
       {children}

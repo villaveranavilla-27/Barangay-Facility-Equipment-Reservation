@@ -24,18 +24,19 @@ type Role = "user" | "admin";
 const items = {
   user: [
     { href: "/user/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/user/calendar", label: "Live Calendar", icon: CalendarDays },
     { href: "/user/facilities", label: "View Facility & Equipment", icon: Building2 },
     { href: "/user/reservations/new", label: "Make Reservation", icon: ClipboardPlus },
-    { href: "/user/reservations", label: "My Requests", icon: ClipboardList },
-    { href: "/user/calendar", label: "Live Calendar", icon: CalendarDays },
+    { href: "/user/reservations", label: "Track Status", icon: ClipboardList },
     { href: "/user/profile", label: "Profile", icon: UserRound },
   ],
   admin: [
     { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/admin/reservations", label: "Reservations", icon: ClipboardList },
+    { href: "/admin/calendar", label: "Live Calendar", icon: CalendarDays },
     { href: "/admin/facilities", label: "Facilities", icon: Building2 },
     { href: "/admin/equipment", label: "Equipment", icon: Boxes },
-    { href: "/admin/calendar", label: "Live Calendar", icon: CalendarDays },
+
     { href: "/admin/users", label: "Users Directory", icon: Users },
     { href: "/admin/reports", label: "Generated Report", icon: FileBarChart2 },
   ],
