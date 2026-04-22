@@ -101,6 +101,45 @@ export function ReservationForm({ userId }: { userId: number }) {
     if (expected) setForm((prev) => ({ ...prev, expectedAttendees: expected }));
   }, [searchParams]);
 
+  const selectableItems = useMemo(() => {
+    return items.filter((item) => item.type === form.itemType);
+  }, [items, form.itemType]);
+
+  useEffect(() => {
+    if (selectableItems.length === 0) return;
+
+    if (form.itemType === "FACILITY") {
+      const hasValidFacility = selectableItems.some(
+        (item) => String(item.id) === form.facilityId
+      );
+
+      if (!hasValidFacility) {
+        const firstAvailableFacility = selectableItems.find(
+          (item) => item.status !== "UNDER_MAINTENANCE"
+        );
+
+        if (firstAvailableFacility) {
+          setForm((prev) => ({
+            ...prev,
+            facilityId: String(firstAvailableFacility.id),
+          }));
+        }
+      }
+    } else {
+      const hasValidEquipment = selectableItems.some(
+        (item) => String(item.id) === form.equipmentId
+      );
+
+      if (!hasValidEquipment) {
+        setForm((prev) => ({
+          ...prev,
+          equipmentId: String(selectableItems[0].id),
+          equipmentQuantity: "",
+        }));
+      }
+    }
+  }, [selectableItems, form.itemType, form.facilityId, form.equipmentId]);
+
   const selectedItem = useMemo(() => {
     const selectedId =
       form.itemType === "FACILITY" ? form.facilityId : form.equipmentId;
@@ -183,8 +222,6 @@ export function ReservationForm({ userId }: { userId: number }) {
     router.push("/user/reservations");
     router.refresh();
   }
-
-  const selectableItems = items.filter((item) => item.type === form.itemType);
 
   return (
     <Card className="mx-auto max-w-6xl">

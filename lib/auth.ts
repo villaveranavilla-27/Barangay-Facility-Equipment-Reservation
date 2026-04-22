@@ -1,6 +1,6 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import bcrypt from "bcrypt";
+import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/schemas";
 import { md5 } from "@/lib/utils";
@@ -35,7 +35,10 @@ export const authOptions: NextAuthOptions = {
         if (intendedRole?.toLowerCase() === "admin") {
           const admin = await prisma.admin.findFirst({
             where: {
-              OR: [{ email: normalizedIdentifier }, { username: normalizedIdentifier }],
+              OR: [
+                { email: normalizedIdentifier },
+                { username: normalizedIdentifier },
+              ],
             },
           });
 
@@ -58,7 +61,10 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findFirst({
           where: {
-            OR: [{ email: normalizedIdentifier }, { username: normalizedIdentifier }],
+            OR: [
+              { email: normalizedIdentifier },
+              { username: normalizedIdentifier },
+            ],
           },
         });
 
@@ -81,29 +87,30 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
-  async jwt({ token, user }) {
-    // Runs on sign in
-    if (user) {
-      token.id = user.id;
-      token.role = user.role ?? "USER";
-      token.email = user.email ?? null;
-      token.name = user.name ?? null;
-    }
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.role = user.role ?? "USER";
+        token.email = user.email ?? null;
+        token.name = user.name ?? null;
+      }
 
-    return token;
+      return token;
+    },
+
+    async session({ session, token }) {
+      if (session.user) {
+        session.user.id = (token.id as string) ?? "";
+        session.user.role = (token.role as "ADMIN" | "USER") ?? "USER";
+        session.user.email =
+          (token.email as string) ?? session.user.email ?? "";
+        session.user.name =
+          (token.name as string) ?? session.user.name ?? "";
+      }
+
+      return session;
+    },
   },
-
-  async session({ session, token }) {
-    if (session.user) {
-      session.user.id = (token.id as string) ?? "";
-      session.user.role = (token.role as "ADMIN" | "USER") ?? "USER";
-      session.user.email = (token.email as string) ?? session.user.email ?? "";
-      session.user.name = (token.name as string) ?? session.user.name ?? "";
-    }
-
-    return session;
-  },
-},
   pages: {
     signIn: "/login",
     error: "/login",
