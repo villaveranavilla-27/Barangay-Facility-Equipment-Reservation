@@ -41,6 +41,153 @@ input, select, textarea, button {
 table {
   border-collapse: collapse;
 }
+
+.calendar-dashboard .fc {
+  --fc-border-color: #e7ecf2;
+  --fc-page-bg-color: #ffffff;
+  --fc-neutral-bg-color: #ffffff;
+  --fc-today-bg-color: #fcfaf5;
+  --fc-event-border-color: transparent;
+  --fc-event-text-color: #ffffff;
+}
+
+.calendar-dashboard .fc .fc-scrollgrid,
+.calendar-dashboard .fc-theme-standard td,
+.calendar-dashboard .fc-theme-standard th {
+  border-color: #e7ecf2;
+}
+
+.calendar-dashboard .fc .fc-scrollgrid {
+  overflow: hidden;
+  border: 1px solid #e7ecf2;
+  border-radius: 1.5rem;
+  background: #ffffff;
+}
+
+.calendar-dashboard .fc .fc-col-header-cell {
+  background: #ffffff;
+}
+
+.calendar-dashboard .fc .fc-col-header-cell-cushion {
+  padding: 1rem 0.75rem;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #344054;
+}
+
+.calendar-dashboard .fc .fc-daygrid-day-frame {
+  min-height: 9.5rem;
+  padding: 0.4rem 0.45rem 0.6rem;
+}
+
+.calendar-dashboard .fc .fc-daygrid-day-top {
+  justify-content: flex-start;
+  padding: 0.15rem 0.2rem 0.45rem;
+}
+
+.calendar-dashboard .fc .fc-daygrid-day-number {
+  padding: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #11233d;
+}
+
+.calendar-dashboard .fc .fc-day-other .fc-daygrid-day-number {
+  color: #98a2b3;
+}
+
+.calendar-dashboard .fc .fc-day-today .fc-daygrid-day-number {
+  color: #0f172a;
+}
+
+.calendar-dashboard .fc .fc-daygrid-day-events {
+  margin: 0;
+}
+
+.calendar-dashboard .fc .fc-daygrid-body-natural .fc-daygrid-day-events {
+  margin-bottom: 0;
+}
+
+.calendar-dashboard .fc .fc-daygrid-event-harness {
+  margin-top: 0.38rem;
+}
+
+.calendar-dashboard .fc .calendar-event-shell,
+.calendar-dashboard .fc .fc-timegrid-event {
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.calendar-dashboard .fc .calendar-event-shell .fc-event-main,
+.calendar-dashboard .fc .fc-timegrid-event .fc-event-main {
+  padding: 0;
+}
+
+.calendar-event-pill {
+  min-height: 3.25rem;
+  border-radius: 0.9rem;
+  padding: 0.55rem 0.72rem;
+}
+
+.calendar-event-pill--green {
+  background: #34a853;
+}
+
+.calendar-event-pill--amber {
+  background: #d8952a;
+}
+
+.calendar-event-pill__title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.2;
+  color: #ffffff;
+}
+
+.calendar-event-pill__time {
+  margin-top: 0.22rem;
+  font-size: 0.68rem;
+  line-height: 1.2;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.calendar-dashboard .fc .fc-daygrid-more-link {
+  margin: 0.3rem 0 0 0.2rem;
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: #667085;
+}
+
+.calendar-dashboard .fc .fc-timegrid-slot {
+  height: 3.75rem;
+}
+
+.calendar-dashboard .fc .fc-timegrid-axis-cushion,
+.calendar-dashboard .fc .fc-timegrid-slot-label-cushion {
+  font-size: 0.75rem;
+  color: #667085;
+}
+
+.calendar-dashboard .fc .fc-timegrid-col.fc-day-today,
+.calendar-dashboard .fc .fc-daygrid-day.fc-day-today {
+  background: #fcfaf5;
+}
+
+.calendar-dashboard .fc .fc-timegrid-event-harness {
+  margin-inline: 0.25rem;
+}
+
+.calendar-dashboard .fc .fc-timegrid-col-events {
+  margin: 0 0.2rem 0 0;
+}
+
+.calendar-dashboard .fc .fc-scroller-liquid-absolute {
+  overflow: hidden auto;
+}
 /* Prevent background from scrolling */
 html, body {
   height: 100%;

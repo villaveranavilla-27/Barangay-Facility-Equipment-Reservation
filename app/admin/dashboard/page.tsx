@@ -45,8 +45,8 @@ export default function AdminDashboardPage() {
           <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="border-b border-border text-text-secondary">
-                <th className="py-3 pr-4">ID</th>
-                <th className="py-3 pr-4">Resident</th>
+                <th className="py-3 pr-4">Reservation ID</th>
+                <th className="py-3 pr-4">Name</th>
                 <th className="py-3 pr-4">Item</th>
                 <th className="py-3 pr-4">Schedule</th>
                 <th className="py-3 pr-4">Status</th>

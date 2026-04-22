@@ -173,7 +173,7 @@ export function AdminCatalogManager({ kind }: { kind: Kind }) {
                       {equipmentPrice == null ? "No price set" : money(equipmentPrice)}
                     </div>
                     <div className="rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-                      Qty: {item.quantity ?? "Not set"}
+                      Quantity: {item.quantity ?? "Not set"}
                     </div>
                   </>
                 )}

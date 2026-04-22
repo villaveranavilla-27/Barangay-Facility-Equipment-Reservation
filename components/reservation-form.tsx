@@ -78,7 +78,8 @@ export function ReservationForm({ userId }: { userId: number }) {
     }
 
     if (quantity) setForm((prev) => ({ ...prev, equipmentQuantity: quantity }));
-    if (start) {
+
+    if (start && type === "FACILITY") {
       const [startDate, startTime] = start.split("T");
       setForm((prev) => ({
         ...prev,
@@ -86,7 +87,8 @@ export function ReservationForm({ userId }: { userId: number }) {
         startTime: startTime ? startTime.slice(0, 5) : prev.startTime,
       }));
     }
-    if (end) {
+
+    if (end && type === "FACILITY") {
       const [endDate, endTime] = end.split("T");
       setForm((prev) => ({
         ...prev,
@@ -94,6 +96,7 @@ export function ReservationForm({ userId }: { userId: number }) {
         endTime: endTime ? endTime.slice(0, 5) : prev.endTime,
       }));
     }
+
     if (purpose) setForm((prev) => ({ ...prev, purpose }));
     if (expected) setForm((prev) => ({ ...prev, expectedAttendees: expected }));
   }, [searchParams]);
@@ -131,10 +134,21 @@ export function ReservationForm({ userId }: { userId: number }) {
       return;
     }
 
-    const startDateTime =
-      form.startDate && form.startTime ? `${form.startDate}T${form.startTime}` : "";
-    const endDateTime =
-      form.endDate && form.endTime ? `${form.endDate}T${form.endTime}` : "";
+    const startDateTime = isFacility
+      ? form.startDate && form.startTime
+        ? `${form.startDate}T${form.startTime}`
+        : ""
+      : form.startDate
+      ? `${form.startDate}T00:00`
+      : "";
+
+    const endDateTime = isFacility
+      ? form.endDate && form.endTime
+        ? `${form.endDate}T${form.endTime}`
+        : ""
+      : form.endDate
+      ? `${form.endDate}T23:59`
+      : "";
 
     const res = await fetch("/api/reservations", {
       method: "POST",
@@ -170,6 +184,8 @@ export function ReservationForm({ userId }: { userId: number }) {
     router.refresh();
   }
 
+  const selectableItems = items.filter((item) => item.type === form.itemType);
+
   return (
     <Card className="mx-auto max-w-6xl">
       <form className="space-y-4" onSubmit={submit}>
@@ -185,6 +201,8 @@ export function ReservationForm({ userId }: { userId: number }) {
                 equipmentId: "",
                 equipmentQuantity: "",
                 expectedAttendees: "",
+                startTime: "",
+                endTime: "",
               }))
             }
           >
@@ -206,21 +224,18 @@ export function ReservationForm({ userId }: { userId: number }) {
             }
             required
           >
-            <option value="">Choose one</option>
-            {items
-              .filter((item) => item.type === form.itemType)
-              .map((item) => (
-                <option
-                  key={`${item.type}-${item.id}`}
-                  value={item.id}
-                  disabled={item.type === "FACILITY" && item.status === "UNDER_MAINTENANCE"}
-                >
-                  {item.itemName}
-                  {item.type === "FACILITY" && item.status === "UNDER_MAINTENANCE"
-                    ? " (Under maintenance)"
-                    : ""}
-                </option>
-              ))}
+            {selectableItems.map((item) => (
+              <option
+                key={`${item.type}-${item.id}`}
+                value={item.id}
+                disabled={item.type === "FACILITY" && item.status === "UNDER_MAINTENANCE"}
+              >
+                {item.itemName}
+                {item.type === "FACILITY" && item.status === "UNDER_MAINTENANCE"
+                  ? " (Under maintenance)"
+                  : ""}
+              </option>
+            ))}
           </Select>
 
           {selectedItem ? (
@@ -268,7 +283,7 @@ export function ReservationForm({ userId }: { userId: number }) {
             <label className="mb-1 block text-[20px] font-medium">Quantity</label>
             <Input
               type="number"
-              min="0"
+              min="1"
               max={availableQuantity ?? undefined}
               value={form.equipmentQuantity}
               onChange={(e) =>
@@ -310,26 +325,32 @@ export function ReservationForm({ userId }: { userId: number }) {
           </div>
         </div>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          <div>
-            <label className="mb-1 block text-[20px] font-medium">Start Time</label>
-            <Input
-              type="time"
-              value={form.startTime}
-              onChange={(e) => setForm((prev) => ({ ...prev, startTime: e.target.value }))}
-              required
-            />
+        {isFacility ? (
+          <div className="grid gap-4 md:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-[20px] font-medium">Start Time</label>
+              <Input
+                type="time"
+                value={form.startTime}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, startTime: e.target.value }))
+                }
+                required
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-[20px] font-medium">End Time</label>
+              <Input
+                type="time"
+                value={form.endTime}
+                onChange={(e) =>
+                  setForm((prev) => ({ ...prev, endTime: e.target.value }))
+                }
+                required
+              />
+            </div>
           </div>
-          <div>
-            <label className="mb-1 block text-[20px] font-medium">End Time</label>
-            <Input
-              type="time"
-              value={form.endTime}
-              onChange={(e) => setForm((prev) => ({ ...prev, endTime: e.target.value }))}
-              required
-            />
-          </div>
-        </div>
+        ) : null}
 
         <div>
           <label className="mb-1 block text-[20px] font-medium">Purpose</label>

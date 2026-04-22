@@ -38,7 +38,7 @@ export default function UserDashboardPage() {
         <div className="grid gap-3 md:grid-cols-4">
           <Button href="/user/facilities" className="w-full">View Facilities</Button>
           <Button href="/user/reservations/new" className="w-full">Make Reservation</Button>
-          <Button href="/user/reservations" className="w-full">Track Status</Button>
+          <Button href="/user/reservations" className="w-full">Reservation Request</Button>
           <Button href="/user/calendar" className="w-full">Live Calendar</Button>
         </div>
       </Card>

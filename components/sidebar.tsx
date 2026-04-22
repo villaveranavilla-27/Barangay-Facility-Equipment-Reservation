@@ -27,7 +27,7 @@ const items = {
     { href: "/user/calendar", label: "Live Calendar", icon: CalendarDays },
     { href: "/user/facilities", label: "View Facility & Equipment", icon: Building2 },
     { href: "/user/reservations/new", label: "Make Reservation", icon: ClipboardPlus },
-    { href: "/user/reservations", label: "Track Status", icon: ClipboardList },
+    { href: "/user/reservations", label: "Reservation Request", icon: ClipboardList },
     { href: "/user/profile", label: "Profile", icon: UserRound },
   ],
   admin: [

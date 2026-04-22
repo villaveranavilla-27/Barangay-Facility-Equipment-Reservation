@@ -51,15 +51,15 @@ type PendingState = {
   reservationId: number;
 };
 
-const ADMIN_TABS = [
+const ADMIN_PRIMARY_TABS = [
   "ALL",
   "PENDING",
   "APPROVED",
-  "BORROWED",
-  "RETURNED",
   "DENIED",
   "CANCELLED",
 ] as const;
+
+const ADMIN_EQUIPMENT_TABS = ["BORROWED", "RETURNED"] as const;
 
 const USER_TABS = ["ALL", "PENDING", "APPROVED", "DENIED", "CANCELLED"] as const;
 
@@ -341,7 +341,8 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
     await submitAdminAction("RETURNED", returning);
   }
 
-  const tabs = mode === "admin" ? ADMIN_TABS : USER_TABS;
+  const tabs = mode === "admin" ? ADMIN_PRIMARY_TABS : USER_TABS;
+
   const filtered = items.filter((reservation) => {
     const text = `${reservation.reservationId} ${reservation.residentName} ${reservation.itemName}`.toLowerCase();
     const matchesSearch = text.includes(search.toLowerCase());
@@ -361,23 +362,54 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
       <Card>
         <div className="flex flex-col gap-3">
           <Input
+            className="w-full max-w-md"
             placeholder="Search reservations"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
 
-          <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-            {tabs.map((status) => (
-              <Button
-                key={status}
-                className="shrink-0 whitespace-nowrap"
-                variant={tab === status ? "primary" : "secondary"}
-                onClick={() => setTab(status)}
-              >
-                {formatStatus(status)}
-              </Button>
-            ))}
-          </div>
+          {mode === "admin" ? (
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+                {ADMIN_PRIMARY_TABS.map((status) => (
+                  <Button
+                    key={status}
+                    className="shrink-0 whitespace-nowrap"
+                    variant={tab === status ? "primary" : "secondary"}
+                    onClick={() => setTab(status)}
+                  >
+                    {formatStatus(status)}
+                  </Button>
+                ))}
+              </div>
+
+              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:justify-end">
+                {ADMIN_EQUIPMENT_TABS.map((status) => (
+                  <Button
+                    key={status}
+                    className="shrink-0 whitespace-nowrap"
+                    variant={tab === status ? "primary" : "secondary"}
+                    onClick={() => setTab(status)}
+                  >
+                    {formatStatus(status)}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+              {tabs.map((status) => (
+                <Button
+                  key={status}
+                  className="shrink-0 whitespace-nowrap"
+                  variant={tab === status ? "primary" : "secondary"}
+                  onClick={() => setTab(status)}
+                >
+                  {formatStatus(status)}
+                </Button>
+              ))}
+            </div>
+          )}
         </div>
       </Card>
 
@@ -455,8 +487,8 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
             <table className="min-w-[760px] text-left">
               <thead>
                 <tr className="border-b border-border text-sm text-text-secondary">
-                  <th className="py-3 pr-4">ID</th>
-                  <th className="py-3 pr-4">Resident Name</th>
+                  <th className="py-3 pr-4">Reservation ID</th>
+                  <th className="py-3 pr-4">Name</th>
                   <th className="py-3 pr-4">Facility/Equipment</th>
                   <th className="py-3 pr-4">Date & Time</th>
                   <th className="py-3 pr-4">Status</th>

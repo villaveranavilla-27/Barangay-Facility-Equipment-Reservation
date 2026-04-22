@@ -59,7 +59,7 @@ export default function LoginPage() {
 
         <div style={styles.links}>
           <Link href="/login" style={styles.link}>
-            User Login
+            Back to User Login
           </Link>
         </div>
       </div>
