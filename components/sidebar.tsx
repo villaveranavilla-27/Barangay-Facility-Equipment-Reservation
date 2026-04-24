@@ -35,7 +35,7 @@ const items = {
     { href: "/admin/calendar", label: "Live Calendar", icon: CalendarDays },
     {
       href: "/admin/facilities",
-      label: "Manage Facility and Equipment",
+      label: "View Facility and Equipment",
       icon: Building2,
     },
     { href: "/admin/users", label: "Users Directory", icon: Users },
