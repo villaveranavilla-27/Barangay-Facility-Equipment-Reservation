@@ -23,7 +23,14 @@ export async function POST(request: Request) {
       },
     });
 
-    if (existing) {
+    const existingAdmin = await prisma.admin.findFirst({
+      where: {
+        OR: [{ email: data.email }, { username: data.username }],
+      },
+      select: { adminId: true },
+    });
+
+    if (existing || existingAdmin) {
       return NextResponse.json(
         { error: "Email or username already exists" },
         { status: 409 }

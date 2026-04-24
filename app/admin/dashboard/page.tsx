@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { StatCard, Card, Button, Badge } from "@/components/common";
+import { fetchJson, getJsonErrorMessage } from "@/lib/fetch-json";
 import { fmtDateTime } from "@/lib/utils";
 
 export default function AdminDashboardPage() {
@@ -9,20 +10,97 @@ export default function AdminDashboardPage() {
   const [recent, setRecent] = useState<any[]>([]);
 
   useEffect(() => {
-    Promise.all([
-      fetch("/api/reservations?scope=all").then((r) => r.json()),
-      fetch("/api/users").then((r) => r.json()),
-      fetch("/api/facilities").then((r) => r.json()),
-      fetch("/api/equipment").then((r) => r.json())
-    ]).then(([reservations, users, facilities, equipment]) => {
-      setStats({
-        totalReservations: reservations.length,
-        pending: reservations.filter((r: any) => r.status === "PENDING").length,
-        totalUsers: users.length,
-        totalItems: facilities.length + equipment.length
-      });
-      setRecent(reservations.slice(0, 5));
-    });
+    let ignore = false;
+
+    const loadDashboard = async () => {
+      try {
+        const [
+          reservationsResult,
+          usersResult,
+          facilitiesResult,
+          equipmentResult,
+        ] = await Promise.all([
+          fetchJson<any[] | { error?: string }>("/api/reservations?scope=all", {
+            cache: "no-store",
+          }),
+          fetchJson<any[] | { error?: string }>("/api/users", { cache: "no-store" }),
+          fetchJson<any[] | { error?: string }>("/api/facilities", {
+            cache: "no-store",
+          }),
+          fetchJson<any[] | { error?: string }>("/api/equipment", {
+            cache: "no-store",
+          }),
+        ]);
+
+        if (!reservationsResult.response.ok) {
+          throw new Error(
+            getJsonErrorMessage(
+              reservationsResult.data,
+              "Failed to load reservations"
+            )
+          );
+        }
+
+        if (!usersResult.response.ok) {
+          throw new Error(getJsonErrorMessage(usersResult.data, "Failed to load users"));
+        }
+
+        if (!facilitiesResult.response.ok) {
+          throw new Error(
+            getJsonErrorMessage(facilitiesResult.data, "Failed to load facilities")
+          );
+        }
+
+        if (!equipmentResult.response.ok) {
+          throw new Error(
+            getJsonErrorMessage(equipmentResult.data, "Failed to load equipment")
+          );
+        }
+
+        const reservations = Array.isArray(reservationsResult.data)
+          ? reservationsResult.data
+          : [];
+        const users = Array.isArray(usersResult.data) ? usersResult.data : [];
+        const facilities = Array.isArray(facilitiesResult.data)
+          ? facilitiesResult.data
+          : [];
+        const equipment = Array.isArray(equipmentResult.data)
+          ? equipmentResult.data
+          : [];
+
+        if (ignore) {
+          return;
+        }
+
+        setStats({
+          totalReservations: reservations.length,
+          pending: reservations.filter((r: any) => r.status === "PENDING").length,
+          totalUsers: users.length,
+          totalItems: facilities.length + equipment.length,
+        });
+        setRecent(reservations.slice(0, 5));
+      } catch (error) {
+        console.error("Failed to load admin dashboard", error);
+
+        if (ignore) {
+          return;
+        }
+
+        setStats({
+          totalReservations: 0,
+          pending: 0,
+          totalUsers: 0,
+          totalItems: 0,
+        });
+        setRecent([]);
+      }
+    };
+
+    void loadDashboard();
+
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   return (

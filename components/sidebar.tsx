@@ -7,7 +7,6 @@ import {
   LayoutDashboard,
   CalendarDays,
   Users,
-  Boxes,
   ClipboardList,
   FileBarChart2,
   LogOut,
@@ -34,9 +33,11 @@ const items = {
     { href: "/admin/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/admin/reservations", label: "Reservations", icon: ClipboardList },
     { href: "/admin/calendar", label: "Live Calendar", icon: CalendarDays },
-    { href: "/admin/facilities", label: "Facilities", icon: Building2 },
-    { href: "/admin/equipment", label: "Equipment", icon: Boxes },
-
+    {
+      href: "/admin/facilities",
+      label: "Manage Facility and Equipment",
+      icon: Building2,
+    },
     { href: "/admin/users", label: "Users Directory", icon: Users },
     { href: "/admin/reports", label: "Generated Report", icon: FileBarChart2 },
   ],
@@ -49,7 +50,6 @@ export function Sidebar({ role }: { role: Role }) {
 
   return (
     <aside className="fixed flex h-screen w-72 flex-col bg-[#165719] shadow-soft">
-      
       {/* HEADER */}
       <div className="border-b border-border px-6 py-6">
         <div className="text-center">
@@ -110,8 +110,7 @@ export function Sidebar({ role }: { role: Role }) {
               variant="danger"
               onClick={async () => {
                 await signOut({
-                  callbackUrl:
-                    role === "admin" ? "/admin-login" : "/login",
+                  callbackUrl: role === "admin" ? "/admin-login" : "/login",
                 });
                 router.refresh();
               }}

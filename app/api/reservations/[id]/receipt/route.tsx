@@ -1,6 +1,13 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { pdf } from "@react-pdf/renderer";
+import { isActiveAdmin, isInactiveAdmin } from "@/lib/access";
+import {
+  handleApiRouteError,
+  jsonError,
+  jsonMethodNotAllowed,
+  parseRouteParamId,
+} from "@/lib/api-route";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ReservationReceiptDoc } from "@/components/pdf/reservation-receipt";
@@ -12,58 +19,77 @@ import {
 } from "@/lib/reservations";
 
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return jsonError("Unauthorized", 401);
+    }
+
+    if (isInactiveAdmin(session.user)) {
+      return jsonError("Unauthorized", 401);
+    }
+
+    const reservationId = parseRouteParamId(params.id, "reservation id");
+
+    const reservation = await prisma.reservation.findFirst({
+      where:
+        isActiveAdmin(session.user)
+          ? { reservationId }
+          : {
+              reservationId,
+              userId: Number(session.user.id),
+            },
+      include: {
+        user: { select: { userId: true, name: true, email: true, contactNumber: true } },
+        facility: true,
+        equipment: true,
+      },
+    });
+
+    if (!reservation) {
+      return jsonError("Not found", 404);
+    }
+
+    const itemType = getReservationItemType(reservation);
+
+    const doc = (
+      <ReservationReceiptDoc
+        reservation={{
+          reservationId: reservation.reservationId,
+          name: reservation.user.name,
+          email: reservation.user.email,
+          contactNumber: reservation.user.contactNumber,
+          itemName: getReservationItemName(reservation),
+          itemType,
+          startDateTime: fmtDateTime(reservation.startDateTime),
+          endDateTime: fmtDateTime(reservation.endDateTime),
+          purpose: reservation.purpose,
+          status: reservation.status,
+          itemPrice: getReservationItemPrice(reservation),
+          expectedAttendees: reservation.expectedAttendees,
+          equipmentQuantity: reservation.equipmentQuantity,
+          approvedAt: reservation.approvedAt ? fmtDateTime(reservation.approvedAt) : null,
+        }}
+      />
+    );
+
+    const buffer = await pdf(doc).toBuffer();
+    return new NextResponse(buffer as unknown as BodyInit, {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="reservation-${reservation.reservationId}.pdf"`,
+      },
+    });
+  } catch (error) {
+    return handleApiRouteError(
+      error,
+      `[/api/reservations/${params.id}/receipt] GET`,
+      "Failed to generate receipt."
+    );
   }
-
-  const reservation = await prisma.reservation.findFirst({
-    where:
-      session.user.role === "ADMIN"
-        ? { reservationId: Number(params.id) }
-        : {
-            reservationId: Number(params.id),
-            userId: Number(session.user.id),
-          },
-    include: {
-      user: { select: { userId: true, name: true, email: true, contactNumber: true } },
-      facility: true,
-      equipment: true,
-    },
-  });
-
-  if (!reservation) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  const itemType = getReservationItemType(reservation);
-
-  const doc = (
-    <ReservationReceiptDoc
-      reservation={{
-        reservationId: reservation.reservationId,
-        name: reservation.user.name,
-        email: reservation.user.email,
-        contactNumber: reservation.user.contactNumber,
-        itemName: getReservationItemName(reservation),
-        itemType,
-        startDateTime: fmtDateTime(reservation.startDateTime),
-        endDateTime: fmtDateTime(reservation.endDateTime),
-        purpose: reservation.purpose,
-        status: reservation.status,
-        itemPrice: getReservationItemPrice(reservation),
-        expectedAttendees: reservation.expectedAttendees,
-        equipmentQuantity: reservation.equipmentQuantity,
-        approvedAt: reservation.approvedAt ? fmtDateTime(reservation.approvedAt) : null,
-      }}
-    />
-  );
-
-  const buffer = await pdf(doc).toBuffer();
-  return new NextResponse(buffer as unknown as BodyInit, {
-    headers: {
-      "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="reservation-${reservation.reservationId}.pdf"`,
-    },
-  });
 }
+
+export const POST = () => jsonMethodNotAllowed(["GET"]);
+export const PATCH = () => jsonMethodNotAllowed(["GET"]);
+export const PUT = () => jsonMethodNotAllowed(["GET"]);
+export const DELETE = () => jsonMethodNotAllowed(["GET"]);

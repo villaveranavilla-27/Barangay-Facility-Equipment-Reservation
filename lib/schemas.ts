@@ -1,5 +1,6 @@
 import { FacilityStatus, ReservationStatus } from "@prisma/client";
 import { z } from "zod";
+import { ADMIN_ROLE, ADMIN_ROLE_VALUES } from "@/lib/admin-roles";
 
 const optionalNonNegativeNumber = z.preprocess((value) => {
   if (value === "" || value === null || value === undefined) {
@@ -61,6 +62,11 @@ export const adminCreateSchema = z.object({
   gender: z.string().min(1),
   birthdate: z.string().optional().nullable(),
   address: z.string().optional().nullable(),
+  adminRole: z.enum(ADMIN_ROLE_VALUES).optional().default(ADMIN_ROLE.ADMIN),
+});
+
+export const adminRemovalSchema = z.object({
+  adminId: z.coerce.number().int().positive(),
 });
 
 export const facilitySchema = z.object({

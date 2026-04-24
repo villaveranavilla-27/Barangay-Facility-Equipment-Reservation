@@ -12,10 +12,14 @@ import {
   Modal,
   Textarea,
 } from "@/components/common";
+import {
+  canCancelReservation,
+  getReservationCancellationErrorMessage,
+} from "@/lib/reservations";
 import { fmtDateTime, money } from "@/lib/utils";
 
 type Mode = "user" | "admin";
-type AdminAction = "APPROVED" | "DENIED" | "RETURNED";
+type ReservationAction = "APPROVED" | "DENIED" | "RETURNED" | "CANCELLED";
 type StatusTone = "yellow" | "green" | "red" | "neutral" | "blue";
 
 type ReservationRow = {
@@ -31,6 +35,7 @@ type ReservationRow = {
   status: string;
   equipmentReturnStatus?: string | null;
   returnedAt?: string | null;
+  cancelledAt?: string | null;
   itemPrice?: number | string | null;
   equipmentQuantity?: number | null;
   itemQuantity?: number | null;
@@ -47,7 +52,7 @@ type DecisionState = {
 };
 
 type PendingState = {
-  action: AdminAction;
+  action: ReservationAction;
   reservationId: number;
 };
 
@@ -101,15 +106,21 @@ function canReturn(reservation: ReservationRow, mode: Mode) {
   );
 }
 
-function actionLabel(action: AdminAction) {
+function canCancel(reservation: ReservationRow, mode: Mode) {
+  return mode === "user" && canCancelReservation(reservation);
+}
+
+function actionLabel(action: ReservationAction) {
   if (action === "APPROVED") return "Approve";
   if (action === "DENIED") return "Deny";
+  if (action === "CANCELLED") return "Cancel Reservation";
   return "Return Item";
 }
 
-function activeLabel(action: AdminAction) {
+function activeLabel(action: ReservationAction) {
   if (action === "APPROVED") return "Approving...";
   if (action === "DENIED") return "Denying...";
+  if (action === "CANCELLED") return "Cancelling...";
   return "Returning...";
 }
 
@@ -121,6 +132,7 @@ function ReservationActions({
   onApprove,
   onDeny,
   onReturn,
+  onCancel,
 }: {
   mode: Mode;
   reservation: ReservationRow;
@@ -129,6 +141,7 @@ function ReservationActions({
   onApprove: (reservation: ReservationRow) => void;
   onDeny: (reservation: ReservationRow) => void;
   onReturn: (reservation: ReservationRow) => void;
+  onCancel: (reservation: ReservationRow) => void;
 }) {
   const isRowPending = pending?.reservationId === reservation.reservationId;
   const linkButtonClasses =
@@ -169,6 +182,18 @@ function ReservationActions({
         </Button>
       ) : null}
 
+      {canCancel(reservation, mode) ? (
+        <Button
+          variant="danger"
+          disabled={isRowPending}
+          onClick={() => onCancel(reservation)}
+        >
+          {isRowPending && pending?.action === "CANCELLED"
+            ? activeLabel("CANCELLED")
+            : "Cancel"}
+        </Button>
+      ) : null}
+
       {mode === "user" && reservation.status === "APPROVED" ? (
         <a
           href={`/api/reservations/${reservation.reservationId}/receipt`}
@@ -204,6 +229,7 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
   const [view, setView] = useState<ReservationRow | null>(null);
   const [decision, setDecision] = useState<DecisionState | null>(null);
   const [returning, setReturning] = useState<ReservationRow | null>(null);
+  const [cancelling, setCancelling] = useState<ReservationRow | null>(null);
   const [notes, setNotes] = useState("");
   const [pending, setPending] = useState<PendingState | null>(null);
 
@@ -268,7 +294,15 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
     setReturning(null);
   }
 
-  async function submitAdminAction(action: AdminAction, reservation: ReservationRow, adminNotes?: string) {
+  function closeCancelModal() {
+    if (pending?.reservationId === cancelling?.reservationId) {
+      return;
+    }
+
+    setCancelling(null);
+  }
+
+  async function submitAdminAction(action: ReservationAction, reservation: ReservationRow, adminNotes?: string) {
     if (pending?.reservationId === reservation.reservationId) {
       return;
     }
@@ -341,6 +375,49 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
     await submitAdminAction("RETURNED", returning);
   }
 
+  async function handleCancelSubmit() {
+    if (!cancelling || pending?.reservationId === cancelling.reservationId) {
+      return;
+    }
+
+    const cancellationError = getReservationCancellationErrorMessage(cancelling);
+    if (cancellationError) {
+      setCancelling(null);
+      toast.error(cancellationError);
+      return;
+    }
+
+    setPending({ action: "CANCELLED", reservationId: cancelling.reservationId });
+
+    try {
+      const res = await fetch(`/api/reservations/${cancelling.reservationId}/cancel`, {
+        method: "POST",
+      });
+      const data = await readJson<
+        ReservationRow & { error?: string; message?: string; alreadyCancelled?: boolean }
+      >(res);
+
+      if (!res.ok) {
+        throw new Error(data?.error || "Cancellation failed");
+      }
+
+      setCancelling(null);
+
+      if (data) {
+        setView((current) =>
+          current?.reservationId === cancelling.reservationId ? data : current
+        );
+      }
+
+      toast.success(data?.message || "Reservation cancelled");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Cancellation failed");
+    } finally {
+      setPending(null);
+    }
+  }
+
   const tabs = mode === "admin" ? ADMIN_PRIMARY_TABS : USER_TABS;
 
   const filtered = items.filter((reservation) => {
@@ -356,6 +433,8 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
     pending?.action === decision?.action;
   const returnIsPending =
     pending?.reservationId === returning?.reservationId && pending?.action === "RETURNED";
+  const cancelIsPending =
+    pending?.reservationId === cancelling?.reservationId && pending?.action === "CANCELLED";
 
   return (
     <div className="space-y-4">
@@ -475,6 +554,7 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
                           setNotes("");
                         }}
                         onReturn={setReturning}
+                        onCancel={setCancelling}
                       />
                     </div>
                   </Card>
@@ -527,6 +607,7 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
                             setNotes("");
                           }}
                           onReturn={setReturning}
+                          onCancel={setCancelling}
                         />
                       </td>
                     </tr>
@@ -593,6 +674,11 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
                 <strong>Expected Attendees:</strong> {view.expectedAttendees ?? "N/A"}
               </p>
             )}
+            {view.cancelledAt ? (
+              <p className="break-words">
+                <strong>Cancelled At:</strong> {fmtDateTime(view.cancelledAt)}
+              </p>
+            ) : null}
             {view.adminNotes ? (
               <p className="break-words sm:col-span-2">
                 <strong>Denial Reason:</strong> {view.adminNotes}
@@ -636,6 +722,48 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
           </p>
           <p>
             <strong>Resident:</strong> {returning?.residentName}
+          </p>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!cancelling}
+        title="Cancel Reservation"
+        onClose={closeCancelModal}
+        footer={
+          <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+            <Button
+              variant="ghost"
+              className="w-full sm:w-auto"
+              disabled={cancelIsPending}
+              onClick={closeCancelModal}
+            >
+              Keep Reservation
+            </Button>
+            <Button
+              variant="danger"
+              className="w-full sm:w-auto"
+              disabled={cancelIsPending}
+              onClick={() => void handleCancelSubmit()}
+            >
+              {cancelIsPending ? activeLabel("CANCELLED") : actionLabel("CANCELLED")}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-2 text-sm text-text-secondary">
+          <p>Are you sure you want to cancel this reservation?</p>
+          <p>
+            <strong>Reservation ID:</strong> {cancelling?.reservationId}
+          </p>
+          <p>
+            <strong>Item:</strong> {cancelling?.itemName}
+          </p>
+          <p>
+            <strong>Schedule:</strong>{" "}
+            {cancelling
+              ? `${fmtDateTime(cancelling.startDateTime)} - ${fmtDateTime(cancelling.endDateTime)}`
+              : ""}
           </p>
         </div>
       </Modal>

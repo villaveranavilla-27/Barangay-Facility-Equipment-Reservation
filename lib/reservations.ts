@@ -24,8 +24,21 @@ type ReservationExtras = {
   adminNotes?: string | null;
   returnStatus?: "BORROWED" | "RETURNED" | null;
   returnedAt?: string | Date | null;
+  cancelledAt?: string | Date | null;
   status?: string | null;
 };
+
+type ReservationCancellationState = Pick<
+  ReservationExtras,
+  "returnStatus" | "returnedAt" | "status"
+> & {
+  startDateTime: string | Date;
+  endDateTime: string | Date;
+};
+
+function toDate(value: string | Date) {
+  return value instanceof Date ? value : new Date(value);
+}
 
 export function getReservationItemType(reservation: { facilityId: number | null }) {
   return reservation.facilityId ? "FACILITY" : "EQUIPMENT";
@@ -71,6 +84,58 @@ export function getEquipmentReturnStatus(
   return null;
 }
 
+export function getReservationCancellationErrorMessage(
+  reservation: ReservationCancellationState,
+  now = new Date()
+) {
+  if (reservation.status === "CANCELLED") {
+    return "This reservation was already cancelled.";
+  }
+
+  if (reservation.status === "DENIED") {
+    return "Denied reservations cannot be cancelled.";
+  }
+
+  if (reservation.status === "APPROVED") {
+    return "Approved reservations cannot be cancelled.";
+  }
+
+  if (reservation.returnStatus === "RETURNED" || reservation.returnedAt) {
+    return "Returned reservations cannot be cancelled.";
+  }
+
+  if (reservation.status !== "PENDING") {
+    return "Only pending reservations can be cancelled.";
+  }
+
+  const startDateTime = toDate(reservation.startDateTime);
+  const endDateTime = toDate(reservation.endDateTime);
+
+  if (
+    Number.isNaN(startDateTime.getTime()) ||
+    Number.isNaN(endDateTime.getTime())
+  ) {
+    return "This reservation can no longer be cancelled.";
+  }
+
+  if (endDateTime <= now) {
+    return "Completed or expired reservations can no longer be cancelled.";
+  }
+
+  if (startDateTime <= now) {
+    return "Ongoing reservations can no longer be cancelled.";
+  }
+
+  return null;
+}
+
+export function canCancelReservation(
+  reservation: ReservationCancellationState,
+  now = new Date()
+) {
+  return getReservationCancellationErrorMessage(reservation, now) === null;
+}
+
 export function serializeReservation<
   T extends ReservationItemRelations &
     ReservationPeopleRelations &
@@ -87,6 +152,7 @@ export function serializeReservation<
     adminNotes: reservation.adminNotes ?? null,
     returnStatus: reservation.returnStatus ?? null,
     returnedAt: reservation.returnedAt ?? null,
+    cancelledAt: reservation.cancelledAt ?? null,
     equipmentReturnStatus: getEquipmentReturnStatus(reservation),
     residentName: reservation.user.name,
     residentEmail: reservation.user.email,

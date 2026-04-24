@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Card, Button, Input, Badge } from "@/components/common";
+import { fetchJson, getJsonErrorMessage } from "@/lib/fetch-json";
 import { money, fmtDate } from "@/lib/utils";
 
 export function ReportsPanel() {
@@ -13,11 +14,21 @@ export function ReportsPanel() {
   useEffect(() => {
     const fetchReservations = async () => {
       try {
-        const res = await fetch("/api/reservations");
-        const data = await res.json();
-        setReservations(data);
+        const { response, data } = await fetchJson<any[] | { error?: string }>(
+          "/api/reservations",
+          {
+            cache: "no-store",
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(getJsonErrorMessage(data, "Failed to load reservations"));
+        }
+
+        setReservations(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error("Failed to load reservations", error);
+        setReservations([]);
       }
     };
 

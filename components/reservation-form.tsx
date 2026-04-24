@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import toast from "react-hot-toast";
 import { Button, Card, Input, Select, Textarea } from "@/components/common";
+import { fetchJson, getJsonErrorMessage } from "@/lib/fetch-json";
 import { money } from "@/lib/utils";
 
 type CatalogItem = {
@@ -19,19 +20,133 @@ type CatalogItem = {
 
 const FACILITY_DEFAULT_RATE = 500;
 
+function pad(value: number | string) {
+  return String(value).padStart(2, "0");
+}
+
+function convert24hTo12h(value: string) {
+  const [hourPart, minutePart] = value.split(":");
+  const hour24 = Number(hourPart);
+  const minute = Number(minutePart);
+
+  if (Number.isNaN(hour24) || Number.isNaN(minute)) {
+    return { hour: "08", minute: "00", period: "AM" as const };
+  }
+
+  const period: "AM" | "PM" = hour24 >= 12 ? "PM" : "AM";
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+
+  return {
+    hour: pad(hour12),
+    minute: pad(minute),
+    period,
+  };
+}
+
+function convert12hTo24h(
+  hour: string,
+  minute: string,
+  period: "AM" | "PM"
+) {
+  const parsedHour = Number(hour);
+  const parsedMinute = Number(minute);
+
+  if (
+    Number.isNaN(parsedHour) ||
+    Number.isNaN(parsedMinute) ||
+    parsedHour < 1 ||
+    parsedHour > 12 ||
+    parsedMinute < 0 ||
+    parsedMinute > 59
+  ) {
+    return "";
+  }
+
+  let hour24 = parsedHour;
+
+  if (period === "AM" && parsedHour === 12) {
+    hour24 = 0;
+  } else if (period === "PM" && parsedHour !== 12) {
+    hour24 = parsedHour + 12;
+  }
+
+  return `${pad(hour24)}:${pad(parsedMinute)}`;
+}
+
+function TimeField({
+  label,
+  hour,
+  minute,
+  period,
+  onHourChange,
+  onMinuteChange,
+  onPeriodChange,
+}: {
+  label: string;
+  hour: string;
+  minute: string;
+  period: "AM" | "PM";
+  onHourChange: (value: string) => void;
+  onMinuteChange: (value: string) => void;
+  onPeriodChange: (value: "AM" | "PM") => void;
+}) {
+  return (
+    <div>
+      <label className="mb-1 block text-[20px] font-medium">{label}</label>
+      <div className="grid grid-cols-[1fr_auto_1fr_120px] items-center gap-3">
+        <Input
+          type="number"
+          min="1"
+          max="12"
+          value={hour}
+          onChange={(e) => onHourChange(e.target.value)}
+          placeholder="HH"
+          required
+        />
+
+        <span className="text-xl font-semibold text-slate-600">:</span>
+
+        <Input
+          type="number"
+          min="0"
+          max="59"
+          value={minute}
+          onChange={(e) => onMinuteChange(e.target.value)}
+          placeholder="MM"
+          required
+        />
+
+        <Select
+          value={period}
+          onChange={(e) => onPeriodChange(e.target.value as "AM" | "PM")}
+        >
+          <option value="AM">AM</option>
+          <option value="PM">PM</option>
+        </Select>
+      </div>
+    </div>
+  );
+}
+
 export function ReservationForm({ userId }: { userId: number }) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const submissionLockRef = useRef(false);
   const [items, setItems] = useState<CatalogItem[]>([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [form, setForm] = useState({
     itemType: "FACILITY",
     facilityId: "",
     equipmentId: "",
     equipmentQuantity: "",
     startDate: "",
-    startTime: "",
+    startHour: "08",
+    startMinute: "00",
+    startPeriod: "AM" as "AM" | "PM",
     endDate: "",
-    endTime: "",
+    endHour: "05",
+    endMinute: "00",
+    endPeriod: "PM" as "AM" | "PM",
     purpose: "",
     expectedAttendees: "",
   });
@@ -57,48 +172,95 @@ export function ReservationForm({ userId }: { userId: number }) {
   }, []);
 
   useEffect(() => {
-    const type = searchParams.get("type");
-    const id = searchParams.get("id");
+    const rawType = searchParams.get("type");
+    const normalizedType =
+      rawType?.toUpperCase() === "FACILITY"
+        ? "FACILITY"
+        : rawType?.toUpperCase() === "EQUIPMENT"
+          ? "EQUIPMENT"
+          : null;
+
+    const genericId = searchParams.get("id");
+    const facilityId = searchParams.get("facilityId");
+    const equipmentId = searchParams.get("equipmentId");
     const start = searchParams.get("start");
     const end = searchParams.get("end");
     const purpose = searchParams.get("purpose");
     const expected = searchParams.get("expectedAttendees");
     const quantity = searchParams.get("quantity");
 
-    if (type === "FACILITY" || type === "EQUIPMENT") {
-      setForm((prev) => ({ ...prev, itemType: type }));
+    if (normalizedType) {
+      setForm((prev) => ({
+        ...prev,
+        itemType: normalizedType,
+        facilityId: normalizedType === "FACILITY" ? prev.facilityId : "",
+        equipmentId: normalizedType === "EQUIPMENT" ? prev.equipmentId : "",
+      }));
     }
 
-    if (id) {
-      if (type === "EQUIPMENT") {
-        setForm((prev) => ({ ...prev, equipmentId: id }));
-      } else {
-        setForm((prev) => ({ ...prev, facilityId: id }));
+    if (normalizedType === "FACILITY") {
+      const selectedFacilityId = facilityId || genericId;
+      if (selectedFacilityId) {
+        setForm((prev) => ({
+          ...prev,
+          facilityId: String(selectedFacilityId),
+          equipmentId: "",
+        }));
       }
     }
 
-    if (quantity) setForm((prev) => ({ ...prev, equipmentQuantity: quantity }));
+    if (normalizedType === "EQUIPMENT") {
+      const selectedEquipmentId = equipmentId || genericId;
+      if (selectedEquipmentId) {
+        setForm((prev) => ({
+          ...prev,
+          equipmentId: String(selectedEquipmentId),
+          facilityId: "",
+        }));
+      }
+    }
 
-    if (start && type === "FACILITY") {
+    if (quantity) {
+      setForm((prev) => ({ ...prev, equipmentQuantity: quantity }));
+    }
+
+    if (start && normalizedType === "FACILITY") {
       const [startDate, startTime] = start.split("T");
+      const convertedStart = startTime
+        ? convert24hTo12h(startTime.slice(0, 5))
+        : null;
+
       setForm((prev) => ({
         ...prev,
         startDate: startDate || prev.startDate,
-        startTime: startTime ? startTime.slice(0, 5) : prev.startTime,
+        startHour: convertedStart ? convertedStart.hour : prev.startHour,
+        startMinute: convertedStart ? convertedStart.minute : prev.startMinute,
+        startPeriod: convertedStart ? convertedStart.period : prev.startPeriod,
       }));
     }
 
-    if (end && type === "FACILITY") {
+    if (end && normalizedType === "FACILITY") {
       const [endDate, endTime] = end.split("T");
+      const convertedEnd = endTime
+        ? convert24hTo12h(endTime.slice(0, 5))
+        : null;
+
       setForm((prev) => ({
         ...prev,
         endDate: endDate || prev.endDate,
-        endTime: endTime ? endTime.slice(0, 5) : prev.endTime,
+        endHour: convertedEnd ? convertedEnd.hour : prev.endHour,
+        endMinute: convertedEnd ? convertedEnd.minute : prev.endMinute,
+        endPeriod: convertedEnd ? convertedEnd.period : prev.endPeriod,
       }));
     }
 
-    if (purpose) setForm((prev) => ({ ...prev, purpose }));
-    if (expected) setForm((prev) => ({ ...prev, expectedAttendees: expected }));
+    if (purpose) {
+      setForm((prev) => ({ ...prev, purpose }));
+    }
+
+    if (expected) {
+      setForm((prev) => ({ ...prev, expectedAttendees: expected }));
+    }
   }, [searchParams]);
 
   const selectableItems = useMemo(() => {
@@ -168,59 +330,98 @@ export function ReservationForm({ userId }: { userId: number }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
 
+    const startTime24 = convert12hTo24h(
+      form.startHour,
+      form.startMinute,
+      form.startPeriod
+    );
+    const endTime24 = convert12hTo24h(
+      form.endHour,
+      form.endMinute,
+      form.endPeriod
+    );
+
+    if (isFacility) {
+      if (!startTime24) {
+        toast.error("Please enter a valid start time.");
+        return;
+      }
+
+      if (!endTime24) {
+        toast.error("Please enter a valid end time.");
+        return;
+      }
+    }
+
     if (quantityExceeds) {
       toast.error("Selected quantity exceeds the available quantity.");
       return;
     }
 
-    const startDateTime = isFacility
-      ? form.startDate && form.startTime
-        ? `${form.startDate}T${form.startTime}`
-        : ""
-      : form.startDate
-      ? `${form.startDate}T00:00`
-      : "";
-
-    const endDateTime = isFacility
-      ? form.endDate && form.endTime
-        ? `${form.endDate}T${form.endTime}`
-        : ""
-      : form.endDate
-      ? `${form.endDate}T23:59`
-      : "";
-
-    const res = await fetch("/api/reservations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        itemType: form.itemType,
-        facilityId: form.itemType === "FACILITY" ? Number(form.facilityId) : null,
-        equipmentId: form.itemType === "EQUIPMENT" ? Number(form.equipmentId) : null,
-        equipmentQuantity:
-          form.itemType === "EQUIPMENT" && form.equipmentQuantity !== ""
-            ? Number(form.equipmentQuantity)
-            : null,
-        startDateTime,
-        endDateTime,
-        purpose: form.purpose,
-        expectedAttendees:
-          form.itemType === "FACILITY" && form.expectedAttendees
-            ? Number(form.expectedAttendees)
-            : null,
-        userId,
-      }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok) {
-      toast.error(data.error || "Reservation failed");
+    if (submissionLockRef.current) {
       return;
     }
 
-    toast.success("Reservation submitted");
-    router.push("/user/reservations");
-    router.refresh();
+    const startDateTime = isFacility
+      ? form.startDate && startTime24
+        ? `${form.startDate}T${startTime24}`
+        : ""
+      : form.startDate
+        ? `${form.startDate}T00:00`
+        : "";
+
+    const endDateTime = isFacility
+      ? form.endDate && endTime24
+        ? `${form.endDate}T${endTime24}`
+        : ""
+      : form.endDate
+        ? `${form.endDate}T23:59`
+        : "";
+
+    submissionLockRef.current = true;
+    setIsSubmitting(true);
+
+    try {
+      const { response, data } = await fetchJson<{
+        error?: string;
+        message?: string;
+      }>("/api/reservations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          itemType: form.itemType,
+          facilityId: form.itemType === "FACILITY" ? Number(form.facilityId) : null,
+          equipmentId: form.itemType === "EQUIPMENT" ? Number(form.equipmentId) : null,
+          equipmentQuantity:
+            form.itemType === "EQUIPMENT" && form.equipmentQuantity !== ""
+              ? Number(form.equipmentQuantity)
+              : null,
+          startDateTime,
+          endDateTime,
+          purpose: form.purpose,
+          expectedAttendees:
+            form.itemType === "FACILITY" && form.expectedAttendees
+              ? Number(form.expectedAttendees)
+              : null,
+          userId,
+        }),
+      });
+
+      if (!response.ok) {
+        submissionLockRef.current = false;
+        setIsSubmitting(false);
+        toast.error(getJsonErrorMessage(data, "Reservation failed"));
+        return;
+      }
+
+      toast.success(data?.message || "Reservation submitted");
+      router.push("/user/reservations");
+      router.refresh();
+    } catch {
+      submissionLockRef.current = false;
+      setIsSubmitting(false);
+      toast.error("Reservation failed");
+    }
   }
 
   return (
@@ -238,8 +439,12 @@ export function ReservationForm({ userId }: { userId: number }) {
                 equipmentId: "",
                 equipmentQuantity: "",
                 expectedAttendees: "",
-                startTime: "",
-                endTime: "",
+                startHour: "08",
+                startMinute: "00",
+                startPeriod: "AM",
+                endHour: "05",
+                endMinute: "00",
+                endPeriod: "PM",
               }))
             }
           >
@@ -264,7 +469,7 @@ export function ReservationForm({ userId }: { userId: number }) {
             {selectableItems.map((item) => (
               <option
                 key={`${item.type}-${item.id}`}
-                value={item.id}
+                value={String(item.id)}
                 disabled={item.type === "FACILITY" && item.status === "UNDER_MAINTENANCE"}
               >
                 {item.itemName}
@@ -364,28 +569,37 @@ export function ReservationForm({ userId }: { userId: number }) {
 
         {isFacility ? (
           <div className="grid gap-4 md:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-[20px] font-medium">Start Time</label>
-              <Input
-                type="time"
-                value={form.startTime}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, startTime: e.target.value }))
-                }
-                required
-              />
-            </div>
-            <div>
-              <label className="mb-1 block text-[20px] font-medium">End Time</label>
-              <Input
-                type="time"
-                value={form.endTime}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, endTime: e.target.value }))
-                }
-                required
-              />
-            </div>
+            <TimeField
+              label="Start Time"
+              hour={form.startHour}
+              minute={form.startMinute}
+              period={form.startPeriod}
+              onHourChange={(value) =>
+                setForm((prev) => ({ ...prev, startHour: value }))
+              }
+              onMinuteChange={(value) =>
+                setForm((prev) => ({ ...prev, startMinute: value }))
+              }
+              onPeriodChange={(value) =>
+                setForm((prev) => ({ ...prev, startPeriod: value }))
+              }
+            />
+
+            <TimeField
+              label="End Time"
+              hour={form.endHour}
+              minute={form.endMinute}
+              period={form.endPeriod}
+              onHourChange={(value) =>
+                setForm((prev) => ({ ...prev, endHour: value }))
+              }
+              onMinuteChange={(value) =>
+                setForm((prev) => ({ ...prev, endMinute: value }))
+              }
+              onPeriodChange={(value) =>
+                setForm((prev) => ({ ...prev, endPeriod: value }))
+              }
+            />
           </div>
         ) : null}
 
@@ -399,7 +613,9 @@ export function ReservationForm({ userId }: { userId: number }) {
           />
         </div>
 
-        <Button type="submit">Submit Reservation</Button>
+        <Button type="submit" disabled={isSubmitting}>
+          {isSubmitting ? "Submitting..." : "Submit Reservation"}
+        </Button>
       </form>
     </Card>
   );

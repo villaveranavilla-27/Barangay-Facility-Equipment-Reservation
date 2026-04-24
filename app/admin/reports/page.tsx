@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { fetchJson, getJsonErrorMessage } from "@/lib/fetch-json";
 
 type Reservation = {
   reservationId?: number;
@@ -90,18 +91,19 @@ export default function ReportsAnalytics() {
         setLoading(true);
         setError("");
 
-        const res = await fetch("/api/reservations?scope=all", {
-          method: "GET",
-          cache: "no-store",
-        });
+        const { response, data } = await fetchJson<Reservation[] | { error?: string }>(
+          "/api/reservations?scope=all",
+          {
+            method: "GET",
+            cache: "no-store",
+          }
+        );
 
-        if (!res.ok) {
-          throw new Error("Failed to fetch reservations");
+        if (!response.ok) {
+          throw new Error(getJsonErrorMessage(data, "Failed to fetch reservations"));
         }
 
-        const data = await res.json();
-
-        const normalized = Array.isArray(data) ? data : data?.data || [];
+        const normalized = Array.isArray(data) ? data : [];
 
         setReservations(normalized);
       } catch (error) {

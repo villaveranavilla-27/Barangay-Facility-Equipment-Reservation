@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, StatCard, Button, Badge } from "@/components/common";
+import { fetchJson, getJsonErrorMessage } from "@/lib/fetch-json";
 
 const RECENT_ACTIVITY_LIMIT = 5;
 
@@ -10,16 +11,49 @@ export default function UserDashboardPage() {
   const [recentActivity, setRecentActivity] = useState<any[]>([]);
 
   useEffect(() => {
-    fetch("/api/reservations")
-      .then((res) => res.json())
-      .then((rows) => {
-        const userRows = Array.isArray(rows) ? rows : [];
+    let ignore = false;
+
+    const loadReservations = async () => {
+      try {
+        const { response, data } = await fetchJson<any[] | { error?: string }>(
+          "/api/reservations",
+          {
+            cache: "no-store",
+          }
+        );
+
+        if (!response.ok) {
+          throw new Error(getJsonErrorMessage(data, "Failed to load reservations"));
+        }
+
+        const userRows = Array.isArray(data) ? data : [];
+
+        if (ignore) {
+          return;
+        }
+
         setData({
           pending: userRows.filter((r: any) => r.status === "PENDING").length,
           approved: userRows.filter((r: any) => r.status === "APPROVED").length,
         });
         setRecentActivity(userRows.slice(0, RECENT_ACTIVITY_LIMIT));
-      });
+      } catch (error) {
+        console.error("Failed to load reservations", error);
+
+        if (ignore) {
+          return;
+        }
+
+        setData({ pending: 0, approved: 0 });
+        setRecentActivity([]);
+      }
+    };
+
+    void loadReservations();
+
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   return (

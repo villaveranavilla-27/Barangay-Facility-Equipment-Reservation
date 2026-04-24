@@ -13,6 +13,7 @@ export function AuthForm({
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
   const [form, setForm] = useState<Record<string, string>>({
     identifier: "",
     password: "",
@@ -25,8 +26,17 @@ export function AuthForm({
     address: "",
   });
 
+  function updateField(field: string, value: string) {
+    setErrorMessage("");
+    setForm((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    setErrorMessage("");
     setLoading(true);
 
     try {
@@ -46,11 +56,19 @@ export function AuthForm({
       }
 
       const intendedRole = mode === "admin-login" ? "admin" : "user";
+      const identifier = form.identifier.trim();
+      const password = form.password;
+      const destination = mode === "admin-login" ? "/admin/dashboard" : "/user/dashboard";
+
+      if (!identifier || !password) {
+        throw new Error("Username and password are required");
+      }
 
       const res = await signIn("credentials", {
         redirect: false,
-        identifier: form.identifier.trim(),
-        password: form.password,
+        callbackUrl: destination,
+        identifier,
+        password,
         intendedRole,
       });
 
@@ -58,10 +76,15 @@ export function AuthForm({
         throw new Error("Invalid email/username or password");
       }
 
-      router.push(mode === "admin-login" ? "/admin/dashboard" : "/user/dashboard");
+      toast.success(mode === "admin-login" ? "Admin login successful" : "Login successful");
+      router.replace(res.url ?? destination);
       router.refresh();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Something went wrong");
+      const message =
+        error instanceof Error ? error.message : "Something went wrong";
+
+      setErrorMessage(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -185,12 +208,12 @@ export function AuthForm({
         <>
           <div>
             <label className={labelClasses}>
-              {mode === "admin-login" ? "Admin Username" : "Username"}
+              {mode === "admin-login" ? "Admin Email or Username" : "Email or Username"}
             </label>
             <Input
               className={inputClasses}
               value={form.identifier}
-              onChange={(e) => setForm({ ...form, identifier: e.target.value })}
+              onChange={(e) => updateField("identifier", e.target.value)}
               required
             />
           </div>
@@ -201,7 +224,7 @@ export function AuthForm({
               type="password"
               className={inputClasses}
               value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              onChange={(e) => updateField("password", e.target.value)}
               required
             />
           </div>
@@ -209,6 +232,12 @@ export function AuthForm({
           <Button type="submit" className={buttonClasses} disabled={loading}>
             {loading ? "Please wait..." : mode === "admin-login" ? "ADMIN LOGIN" : "LOGIN"}
           </Button>
+
+          {errorMessage ? (
+            <p className="text-sm font-medium text-red-600" aria-live="polite">
+              {errorMessage}
+            </p>
+          ) : null}
         </>
       )}
     </form>

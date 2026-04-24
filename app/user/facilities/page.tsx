@@ -1,21 +1,19 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { HugeiconsIcon } from '@hugeicons/react'; // Import the renderer
-// Import the icons from the free icons package
-import { 
-  SearchIcon, 
-  Chair01Icon, 
-  Mic01Icon, 
-  Speaker01Icon, 
-  Projector01Icon, 
-  TentIcon, 
-  Table02Icon, 
-} from '@hugeicons/core-free-icons';
+import {
+  CatalogItemIcon,
+  CatalogSearchField,
+  CatalogTabButton,
+} from "@/components/catalog-ui";
+
+type ActiveTab = "FACILITY" | "EQUIPMENT";
 
 export default function UserFacilitiesPage() {
   const [items, setItems] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState<ActiveTab>("FACILITY");
 
   useEffect(() => {
     Promise.all([
@@ -26,11 +24,13 @@ export default function UserFacilitiesPage() {
         ...facilities.map((f: any) => ({
           ...f,
           id: f.facilityId,
+          facilityId: f.facilityId,
           type: "FACILITY",
         })),
         ...equipment.map((e: any) => ({
           ...e,
           id: e.equipmentId,
+          equipmentId: e.equipmentId,
           type: "EQUIPMENT",
         })),
       ]);
@@ -49,110 +49,101 @@ export default function UserFacilitiesPage() {
   const equipment = filteredItems.filter((i) => i.type === "EQUIPMENT");
   const facilities = filteredItems.filter((i) => i.type === "FACILITY");
 
-  const renderIcon = (itemName: string, type: string) => {
-    const name = itemName.toLowerCase();
-    // Determine which icon object to use
-    let iconToRender = null;
-
-    if (name.includes("chair")) {
-      iconToRender = Chair01Icon;
-    } else if (name.includes("microphone") || name.includes("mic")) {
-      iconToRender = Mic01Icon;
-    } else if (name.includes("speaker") || name.includes("sound")) {
-      iconToRender = Speaker01Icon;
-    } else if (name.includes("projector")) {
-      iconToRender = Projector01Icon;
-    } else if (name.includes("table")) {
-      iconToRender = Table02Icon;
-    } else if (name.includes("tent")) {
-      iconToRender = TentIcon;
-    } 
-    
-
-    if (iconToRender) {
-      // Use the HugeiconsIcon component to render the icon
-      return <HugeiconsIcon icon={iconToRender} size={32} className="text-green-700" />;
-    }
-
-    // Fallback if no match is found
-    return <div className="h-8 w-8 rounded-sm bg-green-700" />;
-  };
+  const activeItems = activeTab === "FACILITY" ? facilities : equipment;
 
   return (
-    <main className="min-h-screen bg-[#f3f4f6] px-10 py-6">
-      <div className="mx-auto max-w-5xl">
-        {/* SEARCH */}
-        <div className="mb-6 flex justify-center">
-          <div className="flex w-[400px] items-center rounded-full border-2 border-green-700 bg-white px-4 py-2 shadow">
-            <input
-              type="text"
-              placeholder="Search Facility and Equipment"
-              className="w-full bg-transparent text-sm outline-none"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-            <HugeiconsIcon icon={SearchIcon} size={20} className="text-green-700" /> {/* Updated search icon */}
-          </div>
+    <main className="min-h-screen bg-[#f3f4f6] px-6 py-6 md:px-10">
+      <div className="mx-auto max-w-6xl space-y-6">
+        {/* SEARCH BAR */}
+        <CatalogSearchField
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+        />
+
+        {/* TABS */}
+        <div className="inline-flex rounded-[22px] border border-gray-200 bg-white p-1 shadow-sm">
+          <CatalogTabButton
+            label="Facilities"
+            active={activeTab === "FACILITY"}
+            onClick={() => setActiveTab("FACILITY")}
+          />
+
+          <CatalogTabButton
+            label="Equipment"
+            active={activeTab === "EQUIPMENT"}
+            onClick={() => setActiveTab("EQUIPMENT")}
+          />
         </div>
 
-        {/* FACILITY */}
-        <div className="mb-6">
-          <div className="w-fit rounded border border-green-700 px-4 py-1 font-semibold text-green-700">
-            Facility
+        {/* ACTIVE TAB CONTENT */}
+        <div className="rounded-[24px] border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-200 px-6 py-5">
+            <h2 className="text-2xl font-semibold text-slate-900">
+              {activeTab === "FACILITY"
+                ? "Facilities Directory"
+                : "Equipment Directory"}
+            </h2>
           </div>
 
-          {facilities.map((item) => (
-            <div key={item.id} className="flex items-center justify-between border-b py-4">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center">
-                  {renderIcon(item.itemName, item.type)}
-                </div>
-
-                <div>
-                  <p className="font-semibold text-green-700">{item.itemName}</p>
-                  <p className="text-sm text-gray-500">{item.description}</p>
-                </div>
+          <div className="divide-y divide-gray-200 px-6">
+            {activeItems.length === 0 ? (
+              <div className="py-10 text-center text-sm text-gray-500">
+                No {activeTab === "FACILITY" ? "facilities" : "equipment"} found.
               </div>
+            ) : (
+              activeItems.map((item) => {
+                const reserveHref =
+                  item.type === "FACILITY"
+                    ? `/user/reservations/new?type=facility&id=${item.id}&facilityId=${item.facilityId}&name=${encodeURIComponent(item.itemName)}`
+                    : `/user/reservations/new?type=equipment&id=${item.id}&equipmentId=${item.equipmentId}&name=${encodeURIComponent(item.itemName)}`;
 
-              <div className="text-right">
-                <p className="font-semibold text-green-700">
-                  {item.pricePerDay ?? "No price"}
-                </p>
-                <p className="text-sm text-gray-500">{item.status}</p>
-              </div>
-            </div>
-          ))}
-        </div>
+                return (
+                  <div
+                    key={item.id}
+                    className="flex flex-col gap-4 py-4 md:flex-row md:items-center md:justify-between"
+                  >
+                    <div className="flex min-w-0 items-center gap-4">
+                      <CatalogItemIcon
+                        itemName={item.itemName}
+                        type={item.type}
+                      />
 
-        {/* EQUIPMENT */}
-        <div>
-          <div className="w-fit rounded border border-green-700 px-4 py-1 font-semibold text-green-700">
-            Equipment
+                      <div className="min-w-0">
+                        <p className="truncate font-semibold text-green-700">
+                          {item.itemName}
+                        </p>
+                        <p className="truncate text-sm text-gray-500">
+                          {item.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:gap-6">
+                      <div className="shrink-0 text-left md:text-right">
+                        <p className="font-semibold text-green-700">
+                          {item.type === "FACILITY"
+                            ? item.pricePerDay ?? "No price"
+                            : item.price ?? "No price"}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          {item.type === "FACILITY"
+                            ? item.status
+                            : `${item.quantity ?? 0} available`}
+                        </p>
+                      </div>
+
+                      <Link
+                        href={reserveHref}
+                        className="inline-flex h-11 items-center justify-center rounded-full bg-green-700 px-5 text-sm font-semibold text-white transition hover:bg-green-800"
+                      >
+                        Reserve Now
+                      </Link>
+                    </div>
+                  </div>
+                );
+              })
+            )}
           </div>
-
-          {equipment.map((item) => (
-            <div key={item.id} className="flex items-center justify-between border-b py-4">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center">
-                  {renderIcon(item.itemName, item.type)}
-                </div>
-
-                <div>
-                  <p className="font-semibold text-green-700">{item.itemName}</p>
-                  <p className="text-sm text-gray-500">{item.description}</p>
-                </div>
-              </div>
-
-              <div className="text-right">
-                <p className="font-semibold text-green-700">
-                  {item.price ?? "No price"}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {item.quantity ?? 0} available
-                </p>
-              </div>
-            </div>
-          ))}
         </div>
       </div>
     </main>

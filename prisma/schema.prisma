@@ -24,6 +24,11 @@ enum EquipmentReturnStatus {
   RETURNED
 }
 
+enum AdminRole {
+  CORE_ADMIN
+  ADMIN
+}
+
 model Admin {
   adminId       Int           @id @default(autoincrement()) @map("Admin_ID")
   name          String        @db.VarChar(191) @map("Name")
@@ -34,6 +39,10 @@ model Admin {
   password      String        @db.VarChar(191) @map("Password")
   contactNumber String        @db.VarChar(50) @map("Contact number")
   email         String        @db.VarChar(191) @map("email")
+  role          AdminRole     @default(ADMIN) @map("Role")
+  isActive      Boolean       @default(true) @map("Is_Active")
+  createdAt     DateTime      @default(now()) @map("CreatedAt")
+  deactivatedAt DateTime?     @map("DeactivatedAt")
   equipment     Equipment[]
   reservation   Reservation[]
   facility      Facility[]
@@ -98,6 +107,7 @@ model Reservation {
   equipmentQuantity Int?              @map("Equipment_Quantity")
   approvedAt        DateTime?         @map("ApprovedAt")
   returnedAt        DateTime?         @map("ReturnedAt")
+  cancelledAt       DateTime?         @map("CancelledAt")
   returnStatus      EquipmentReturnStatus? @map("Return_Status")
   adminNotes        String?           @db.VarChar(191) @map("Admin_Notes")
   user              User              @relation(fields: [userId], references: [userId], onDelete: Restrict, onUpdate: Cascade)
@@ -109,5 +119,7 @@ model Reservation {
   @@index([equipmentId])
   @@index([adminId])
   @@index([facilityId])
+  @@unique([userId, facilityId, startDateTime, endDateTime])
+  @@unique([userId, equipmentId, startDateTime, endDateTime])
   @@map("Reservation")
 }

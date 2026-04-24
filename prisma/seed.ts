@@ -65,6 +65,7 @@ async function main() {
         email: demoAdmin.email,
         password: md5(demoAdmin.password),
         contactNumber: demoAdmin.contactNumber,
+        role: "CORE_ADMIN",
       },
     });
 

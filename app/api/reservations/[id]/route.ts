@@ -1,6 +1,15 @@
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { EquipmentReturnStatus, ReservationStatus } from "@prisma/client";
+import { isActiveAdmin, isInactiveAdmin } from "@/lib/access";
+import {
+  ApiRouteError,
+  handleApiRouteError,
+  jsonError,
+  jsonMethodNotAllowed,
+  parseRouteParamId,
+  readJsonBody,
+} from "@/lib/api-route";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { reservationAdminActionSchema } from "@/lib/schemas";
@@ -22,12 +31,9 @@ const reservationInclude = {
 
 type ReservationReader = Pick<typeof prisma, "reservation">;
 
-class ReservationActionError extends Error {
-  constructor(
-    readonly status: number,
-    message: string
-  ) {
-    super(message);
+class ReservationActionError extends ApiRouteError {
+  constructor(status: number, message: string) {
+    super(status, message);
     this.name = "ReservationActionError";
   }
 }
@@ -75,49 +81,59 @@ function getReturnActionErrorMessage(
 }
 
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return jsonError("Unauthorized", 401);
+    }
+
+    if (isInactiveAdmin(session.user)) {
+      return jsonError("Unauthorized", 401);
+    }
+
+    const reservationId = parseRouteParamId(params.id, "reservation id");
+
+    const reservation = await prisma.reservation.findFirst({
+      where:
+        isActiveAdmin(session.user)
+          ? { reservationId }
+          : {
+              reservationId,
+              userId: Number(session.user.id),
+            },
+      include: reservationInclude,
+    });
+
+    if (!reservation) {
+      return jsonError("Not found", 404);
+    }
+
+    return NextResponse.json(serializeReservation(reservation));
+  } catch (error) {
+    return handleApiRouteError(
+      error,
+      `[/api/reservations/${params.id}] GET`,
+      "Failed to fetch reservation."
+    );
   }
-
-  const reservation = await prisma.reservation.findFirst({
-    where:
-      session.user.role === "ADMIN"
-        ? { reservationId: Number(params.id) }
-        : {
-            reservationId: Number(params.id),
-            userId: Number(session.user.id),
-          },
-    include: reservationInclude,
-  });
-
-  if (!reservation) {
-    return NextResponse.json({ error: "Not found" }, { status: 404 });
-  }
-
-  return NextResponse.json(serializeReservation(reservation));
 }
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role !== "ADMIN") {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const parsed = reservationAdminActionSchema.safeParse(await request.json());
-  if (!parsed.success) {
-    return NextResponse.json(
-      { error: "Invalid data", details: parsed.error.flatten().fieldErrors },
-      { status: 400 }
-    );
-  }
-
-  const reservationId = Number(params.id);
-  if (!Number.isInteger(reservationId) || reservationId <= 0) {
-    return NextResponse.json({ error: "Invalid reservation id" }, { status: 400 });
-  }
-
   try {
+    const session = await getServerSession(authOptions);
+    if (!isActiveAdmin(session?.user)) {
+      return jsonError("Unauthorized", 401);
+    }
+
+    const adminId = Number(session?.user?.id);
+    const body = await readJsonBody<unknown>(request);
+    const parsed = reservationAdminActionSchema.safeParse(body);
+    if (!parsed.success) {
+      return jsonError("Invalid data", 400, parsed.error.flatten().fieldErrors);
+    }
+
+    const reservationId = parseRouteParamId(params.id, "reservation id");
+
     const reservation = await prisma.$transaction(async (tx) => {
       const existing = await getReservationById(tx, reservationId);
 
@@ -166,7 +182,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
             ],
           },
           data: {
-            adminId: Number(session.user.id),
+            adminId,
             returnStatus: EquipmentReturnStatus.RETURNED,
             returnedAt: new Date(),
           },
@@ -242,7 +258,7 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       const updatedReservation = await tx.reservation.updateMany({
         where: { reservationId, status: ReservationStatus.PENDING },
         data: {
-          adminId: Number(session.user.id),
+          adminId,
           status: parsed.data.status,
           approvedAt: parsed.data.status === ReservationStatus.APPROVED ? new Date() : null,
           adminNotes:
@@ -286,10 +302,14 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     return NextResponse.json(serializeReservation(reservation));
   } catch (error) {
-    if (error instanceof ReservationActionError) {
-      return NextResponse.json({ error: error.message }, { status: error.status });
-    }
-
-    throw error;
+    return handleApiRouteError(
+      error,
+      `[/api/reservations/${params.id}] PATCH`,
+      "Failed to update reservation."
+    );
   }
 }
+
+export const POST = () => jsonMethodNotAllowed(["GET", "PATCH"]);
+export const PUT = () => jsonMethodNotAllowed(["GET", "PATCH"]);
+export const DELETE = () => jsonMethodNotAllowed(["GET", "PATCH"]);
