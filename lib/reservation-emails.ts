@@ -1,3 +1,4 @@
+import { getAppUrl } from "@/lib/app-url";
 import { fmtDateTime, money } from "@/lib/utils";
 import {
   getReservationItemName,
@@ -38,16 +39,6 @@ function escapeHtml(value: string) {
 
 function sentenceCase(value: string) {
   return value.charAt(0) + value.slice(1).toLowerCase();
-}
-
-function getAppUrl(path: string) {
-  const baseUrl = process.env.NEXTAUTH_URL?.trim();
-
-  if (!baseUrl) {
-    return null;
-  }
-
-  return `${baseUrl.replace(/\/$/, "")}${path}`;
 }
 
 function detailRow(label: string, value: string | number | null | undefined) {

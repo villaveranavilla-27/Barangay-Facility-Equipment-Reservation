@@ -1,6 +1,7 @@
 import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
+import { getAppOrigin } from "@/lib/app-url";
 import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/schemas";
 import { md5 } from "@/lib/utils";
@@ -92,6 +93,26 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
   callbacks: {
+    async redirect({ url, baseUrl }) {
+      const appOrigin = getAppOrigin(baseUrl) ?? baseUrl;
+
+      if (url.startsWith("/")) {
+        return new URL(url, `${appOrigin}/`).toString();
+      }
+
+      try {
+        const targetUrl = new URL(url);
+
+        if (targetUrl.origin === appOrigin) {
+          return targetUrl.toString();
+        }
+      } catch {
+        return appOrigin;
+      }
+
+      return appOrigin;
+    },
+
     async jwt({ token, user }) {
       if (user) {
         const authUser = user as typeof user & {

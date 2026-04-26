@@ -1,3 +1,0 @@
-ALTER TABLE `Reservation`
-    ADD COLUMN `ReturnedAt` DATETIME(3) NULL,
-    ADD COLUMN `Return_Status` ENUM('BORROWED', 'RETURNED') NULL;

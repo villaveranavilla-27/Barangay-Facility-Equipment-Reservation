@@ -134,74 +134,154 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     const reservationId = parseRouteParamId(params.id, "reservation id");
 
-    const reservation = await prisma.$transaction(async (tx) => {
-      const existing = await getReservationById(tx, reservationId);
+    const reservation = await prisma.$transaction(
+      async (tx) => {
+        const existing = await getReservationById(tx, reservationId);
 
-      if (!existing) {
-        throw new ReservationActionError(404, "Reservation not found");
-      }
-
-      if (parsed.data.status === "RETURNED") {
-        if (!existing.equipmentId) {
-          throw new ReservationActionError(400, "Only equipment reservations can be returned");
+        if (!existing) {
+          throw new ReservationActionError(404, "Reservation not found");
         }
 
-        const currentReturnStatus = getEquipmentReturnStatus(existing);
-        if (currentReturnStatus === "RETURNED") {
+        if (parsed.data.status === "RETURNED") {
+          if (!existing.equipmentId) {
+            throw new ReservationActionError(400, "Only equipment reservations can be returned");
+          }
+
+          const currentReturnStatus = getEquipmentReturnStatus(existing);
+          if (currentReturnStatus === "RETURNED") {
+            throw new ReservationActionError(
+              400,
+              "This equipment reservation is already marked as returned"
+            );
+          }
+
+          if (currentReturnStatus !== "BORROWED") {
+            throw new ReservationActionError(400, "Only borrowed equipment can be returned");
+          }
+
+          if (!existing.equipmentQuantity) {
+            throw new ReservationActionError(400, "The requested quantity is missing");
+          }
+
+          const equipment = await tx.equipment.findUnique({
+            where: { equipmentId: existing.equipmentId },
+            select: { equipmentId: true, quantity: true },
+          });
+
+          if (!equipment) {
+            throw new ReservationActionError(404, "Equipment not found");
+          }
+
+          const updatedReservation = await tx.reservation.updateMany({
+            where: {
+              reservationId,
+              equipmentId: { not: null },
+              returnedAt: null,
+              OR: [
+                { returnStatus: EquipmentReturnStatus.BORROWED },
+                { returnStatus: null, status: ReservationStatus.APPROVED },
+              ],
+            },
+            data: {
+              adminId,
+              returnStatus: EquipmentReturnStatus.RETURNED,
+              returnedAt: new Date(),
+            },
+          });
+
+          if (updatedReservation.count === 0) {
+            const latest = await getReservationById(tx, reservationId);
+            throw new ReservationActionError(400, getReturnActionErrorMessage(latest));
+          }
+
+          if (equipment.quantity !== null) {
+            await tx.equipment.update({
+              where: { equipmentId: existing.equipmentId },
+              data: {
+                quantity: {
+                  increment: existing.equipmentQuantity,
+                },
+              },
+            });
+          }
+
+          const updated = await getReservationById(tx, reservationId);
+          if (!updated) {
+            throw new ReservationActionError(404, "Reservation not found");
+          }
+
+          return updated;
+        }
+
+        if (existing.status !== ReservationStatus.PENDING) {
           throw new ReservationActionError(
             400,
-            "This equipment reservation is already marked as returned"
+            getPendingActionErrorMessage(existing.status)
           );
         }
 
-        if (currentReturnStatus !== "BORROWED") {
-          throw new ReservationActionError(400, "Only borrowed equipment can be returned");
-        }
+        if (parsed.data.status === ReservationStatus.APPROVED && existing.equipmentId) {
+          if (!existing.equipmentQuantity) {
+            throw new ReservationActionError(400, "The requested quantity is missing");
+          }
 
-        if (!existing.equipmentQuantity) {
-          throw new ReservationActionError(400, "The requested quantity is missing");
-        }
+          const equipment = await tx.equipment.findUnique({
+            where: { equipmentId: existing.equipmentId },
+            select: { equipmentId: true, quantity: true },
+          });
 
-        const equipment = await tx.equipment.findUnique({
-          where: { equipmentId: existing.equipmentId },
-          select: { equipmentId: true, quantity: true },
-        });
+          if (!equipment) {
+            throw new ReservationActionError(404, "Equipment not found");
+          }
 
-        if (!equipment) {
-          throw new ReservationActionError(404, "Equipment not found");
+          if (equipment.quantity !== null) {
+            const updatedEquipment = await tx.equipment.updateMany({
+              where: {
+                equipmentId: existing.equipmentId,
+                quantity: { gte: existing.equipmentQuantity },
+              },
+              data: {
+                quantity: {
+                  decrement: existing.equipmentQuantity,
+                },
+              },
+            });
+
+            if (updatedEquipment.count === 0) {
+              throw new ReservationActionError(
+                400,
+                "Requested quantity exceeds the available quantity"
+              );
+            }
+          }
         }
 
         const updatedReservation = await tx.reservation.updateMany({
-          where: {
-            reservationId,
-            equipmentId: { not: null },
-            returnedAt: null,
-            OR: [
-              { returnStatus: EquipmentReturnStatus.BORROWED },
-              { returnStatus: null, status: ReservationStatus.APPROVED },
-            ],
-          },
+          where: { reservationId, status: ReservationStatus.PENDING },
           data: {
             adminId,
-            returnStatus: EquipmentReturnStatus.RETURNED,
-            returnedAt: new Date(),
+            status: parsed.data.status,
+            approvedAt: parsed.data.status === ReservationStatus.APPROVED ? new Date() : null,
+            adminNotes:
+              parsed.data.status === ReservationStatus.DENIED
+                ? parsed.data.adminNotes?.trim() ?? null
+                : null,
+            returnStatus:
+              parsed.data.status === ReservationStatus.APPROVED && existing.equipmentId
+                ? EquipmentReturnStatus.BORROWED
+                : null,
+            returnedAt: null,
           },
         });
 
         if (updatedReservation.count === 0) {
           const latest = await getReservationById(tx, reservationId);
-          throw new ReservationActionError(400, getReturnActionErrorMessage(latest));
-        }
-
-        if (equipment.quantity !== null) {
-          await tx.equipment.update({
-            where: { equipmentId: existing.equipmentId },
-            data: {
-              quantity: {
-                increment: existing.equipmentQuantity,
-              },
-            },
-          });
+          throw new ReservationActionError(
+            400,
+            latest
+              ? getPendingActionErrorMessage(latest.status)
+              : "Reservation not found"
+          );
         }
 
         const updated = await getReservationById(tx, reservationId);
@@ -210,86 +290,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         }
 
         return updated;
+      },
+      {
+        timeout: 15000,
+        maxWait: 5000,
       }
-
-      if (existing.status !== ReservationStatus.PENDING) {
-        throw new ReservationActionError(
-          400,
-          getPendingActionErrorMessage(existing.status)
-        );
-      }
-
-      if (parsed.data.status === ReservationStatus.APPROVED && existing.equipmentId) {
-        if (!existing.equipmentQuantity) {
-          throw new ReservationActionError(400, "The requested quantity is missing");
-        }
-
-        const equipment = await tx.equipment.findUnique({
-          where: { equipmentId: existing.equipmentId },
-          select: { equipmentId: true, quantity: true },
-        });
-
-        if (!equipment) {
-          throw new ReservationActionError(404, "Equipment not found");
-        }
-
-        if (equipment.quantity !== null) {
-          const updatedEquipment = await tx.equipment.updateMany({
-            where: {
-              equipmentId: existing.equipmentId,
-              quantity: { gte: existing.equipmentQuantity },
-            },
-            data: {
-              quantity: {
-                decrement: existing.equipmentQuantity,
-              },
-            },
-          });
-
-          if (updatedEquipment.count === 0) {
-            throw new ReservationActionError(
-              400,
-              "Requested quantity exceeds the available quantity"
-            );
-          }
-        }
-      }
-
-      const updatedReservation = await tx.reservation.updateMany({
-        where: { reservationId, status: ReservationStatus.PENDING },
-        data: {
-          adminId,
-          status: parsed.data.status,
-          approvedAt: parsed.data.status === ReservationStatus.APPROVED ? new Date() : null,
-          adminNotes:
-            parsed.data.status === ReservationStatus.DENIED
-              ? parsed.data.adminNotes?.trim() ?? null
-              : null,
-          returnStatus:
-            parsed.data.status === ReservationStatus.APPROVED && existing.equipmentId
-              ? EquipmentReturnStatus.BORROWED
-              : null,
-          returnedAt: null,
-        },
-      });
-
-      if (updatedReservation.count === 0) {
-        const latest = await getReservationById(tx, reservationId);
-        throw new ReservationActionError(
-          400,
-          latest
-            ? getPendingActionErrorMessage(latest.status)
-            : "Reservation not found"
-        );
-      }
-
-      const updated = await getReservationById(tx, reservationId);
-      if (!updated) {
-        throw new ReservationActionError(404, "Reservation not found");
-      }
-
-      return updated;
-    });
+    );
 
     if (parsed.data.status !== "RETURNED") {
       const message =
