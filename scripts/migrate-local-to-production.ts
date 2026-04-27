@@ -58,7 +58,13 @@ function readEnvFile(filePath: string) {
   return env;
 }
 
-function getDatabaseUrl(filePath: string) {
+function getDatabaseUrl(filePath: string, overrideEnvVarName: string) {
+  const overrideValue = process.env[overrideEnvVarName]?.trim();
+
+  if (overrideValue) {
+    return overrideValue;
+  }
+
   const env = readEnvFile(filePath);
   const databaseUrl = env.DATABASE_URL?.trim();
 
@@ -215,8 +221,14 @@ async function main() {
     ? "compare"
     : "counts";
 
-  const localDatabaseUrl = getDatabaseUrl(SOURCE_ENV_PATH);
-  const productionDatabaseUrl = getDatabaseUrl(TARGET_ENV_PATH);
+  const localDatabaseUrl = getDatabaseUrl(
+    SOURCE_ENV_PATH,
+    "SOURCE_DATABASE_URL"
+  );
+  const productionDatabaseUrl = getDatabaseUrl(
+    TARGET_ENV_PATH,
+    "TARGET_DATABASE_URL"
+  );
 
   const local = createClient(localDatabaseUrl);
   const production = createClient(productionDatabaseUrl);
@@ -283,14 +295,25 @@ async function main() {
       return;
     }
 
+    const adminIdMap = new Map<number, number>();
+    const userIdMap = new Map<number, number>();
+    const equipmentIdMap = new Map<number, number>();
+    const facilityIdMap = new Map<number, number>();
+
     await upsertRows("Admins", admins, async (admin) => {
-      const existing = await production.admin.findUnique({
-        where: { adminId: admin.adminId },
-        select: { adminId: true },
-      });
+      const existing =
+        (await production.admin.findUnique({
+          where: { adminId: admin.adminId },
+          select: { adminId: true, username: true, email: true },
+        })) ??
+        (await production.admin.findFirst({
+          where: {
+            OR: [{ username: admin.username }, { email: admin.email }],
+          },
+          select: { adminId: true, username: true, email: true },
+        }));
 
       const data = {
-        adminId: admin.adminId,
         name: admin.name,
         birthdate: admin.birthdate,
         gender: admin.gender,
@@ -307,25 +330,41 @@ async function main() {
 
       if (existing) {
         await production.admin.update({
-          where: { adminId: admin.adminId },
+          where: { adminId: existing.adminId },
           data,
         });
+
+        adminIdMap.set(admin.adminId, existing.adminId);
 
         return "updated";
       }
 
-      await production.admin.create({ data });
+      const created = await production.admin.create({
+        data: {
+          adminId: admin.adminId,
+          ...data,
+        },
+        select: { adminId: true },
+      });
+
+      adminIdMap.set(admin.adminId, created.adminId);
       return "created";
     });
 
     await upsertRows("Users", users, async (user) => {
-      const existing = await production.user.findUnique({
-        where: { userId: user.userId },
-        select: { userId: true },
-      });
+      const existing =
+        (await production.user.findUnique({
+          where: { userId: user.userId },
+          select: { userId: true, username: true, email: true },
+        })) ??
+        (await production.user.findFirst({
+          where: {
+            OR: [{ username: user.username }, { email: user.email }],
+          },
+          select: { userId: true, username: true, email: true },
+        }));
 
       const data = {
-        userId: user.userId,
         name: user.name,
         birthdate: user.birthdate,
         gender: user.gender,
@@ -338,26 +377,49 @@ async function main() {
 
       if (existing) {
         await production.user.update({
-          where: { userId: user.userId },
+          where: { userId: existing.userId },
           data,
         });
+
+        userIdMap.set(user.userId, existing.userId);
 
         return "updated";
       }
 
-      await production.user.create({ data });
+      const created = await production.user.create({
+        data: {
+          userId: user.userId,
+          ...data,
+        },
+        select: { userId: true },
+      });
+
+      userIdMap.set(user.userId, created.userId);
       return "created";
     });
 
     await upsertRows("Equipment", equipment, async (item) => {
-      const existing = await production.equipment.findUnique({
-        where: { equipmentId: item.equipmentId },
-        select: { equipmentId: true },
-      });
+      const mappedAdminId = adminIdMap.get(item.adminId);
+
+      if (!mappedAdminId) {
+        throw new Error(`Missing admin mapping for equipment ${item.equipmentId}`);
+      }
+
+      const existing =
+        (await production.equipment.findUnique({
+          where: { equipmentId: item.equipmentId },
+          select: { equipmentId: true },
+        })) ??
+        (await production.equipment.findFirst({
+          where: {
+            adminId: mappedAdminId,
+            itemName: item.itemName,
+          },
+          select: { equipmentId: true },
+        }));
 
       const data = {
-        equipmentId: item.equipmentId,
-        adminId: item.adminId,
+        adminId: mappedAdminId,
         itemName: item.itemName,
         description: item.description,
         price: item.price ? new Prisma.Decimal(item.price.toString()) : null,
@@ -366,26 +428,49 @@ async function main() {
 
       if (existing) {
         await production.equipment.update({
-          where: { equipmentId: item.equipmentId },
+          where: { equipmentId: existing.equipmentId },
           data,
         });
+
+        equipmentIdMap.set(item.equipmentId, existing.equipmentId);
 
         return "updated";
       }
 
-      await production.equipment.create({ data });
+      const created = await production.equipment.create({
+        data: {
+          equipmentId: item.equipmentId,
+          ...data,
+        },
+        select: { equipmentId: true },
+      });
+
+      equipmentIdMap.set(item.equipmentId, created.equipmentId);
       return "created";
     });
 
     await upsertRows("Facilities", facilities, async (facility) => {
-      const existing = await production.facility.findUnique({
-        where: { facilityId: facility.facilityId },
-        select: { facilityId: true },
-      });
+      const mappedAdminId = adminIdMap.get(facility.adminId);
+
+      if (!mappedAdminId) {
+        throw new Error(`Missing admin mapping for facility ${facility.facilityId}`);
+      }
+
+      const existing =
+        (await production.facility.findUnique({
+          where: { facilityId: facility.facilityId },
+          select: { facilityId: true },
+        })) ??
+        (await production.facility.findFirst({
+          where: {
+            adminId: mappedAdminId,
+            itemName: facility.itemName,
+          },
+          select: { facilityId: true },
+        }));
 
       const data = {
-        facilityId: facility.facilityId,
-        adminId: facility.adminId,
+        adminId: mappedAdminId,
         itemName: facility.itemName,
         description: facility.description,
         status: facility.status,
@@ -394,29 +479,85 @@ async function main() {
 
       if (existing) {
         await production.facility.update({
-          where: { facilityId: facility.facilityId },
+          where: { facilityId: existing.facilityId },
           data,
         });
+
+        facilityIdMap.set(facility.facilityId, existing.facilityId);
 
         return "updated";
       }
 
-      await production.facility.create({ data });
+      const created = await production.facility.create({
+        data: {
+          facilityId: facility.facilityId,
+          ...data,
+        },
+        select: { facilityId: true },
+      });
+
+      facilityIdMap.set(facility.facilityId, created.facilityId);
       return "created";
     });
 
     await upsertRows("Reservations", reservations, async (reservation) => {
-      const existing = await production.reservation.findUnique({
-        where: { reservationId: reservation.reservationId },
-        select: { reservationId: true },
-      });
+      const mappedUserId = userIdMap.get(reservation.userId);
+      const mappedAdminId =
+        reservation.adminId === null ? null : adminIdMap.get(reservation.adminId);
+      const mappedEquipmentId =
+        reservation.equipmentId === null
+          ? null
+          : equipmentIdMap.get(reservation.equipmentId);
+      const mappedFacilityId =
+        reservation.facilityId === null
+          ? null
+          : facilityIdMap.get(reservation.facilityId);
+
+      if (!mappedUserId) {
+        throw new Error(
+          `Missing user mapping for reservation ${reservation.reservationId}`
+        );
+      }
+
+      if (reservation.adminId !== null && mappedAdminId === undefined) {
+        throw new Error(
+          `Missing admin mapping for reservation ${reservation.reservationId}`
+        );
+      }
+
+      if (reservation.equipmentId !== null && mappedEquipmentId === undefined) {
+        throw new Error(
+          `Missing equipment mapping for reservation ${reservation.reservationId}`
+        );
+      }
+
+      if (reservation.facilityId !== null && mappedFacilityId === undefined) {
+        throw new Error(
+          `Missing facility mapping for reservation ${reservation.reservationId}`
+        );
+      }
+
+      const existing =
+        (await production.reservation.findUnique({
+          where: { reservationId: reservation.reservationId },
+          select: { reservationId: true },
+        })) ??
+        (await production.reservation.findFirst({
+          where: {
+            userId: mappedUserId,
+            facilityId: mappedFacilityId ?? null,
+            equipmentId: mappedEquipmentId ?? null,
+            startDateTime: reservation.startDateTime,
+            endDateTime: reservation.endDateTime,
+          },
+          select: { reservationId: true },
+        }));
 
       const data = {
-        reservationId: reservation.reservationId,
-        userId: reservation.userId,
-        equipmentId: reservation.equipmentId,
-        adminId: reservation.adminId,
-        facilityId: reservation.facilityId,
+        userId: mappedUserId,
+        equipmentId: mappedEquipmentId ?? null,
+        adminId: mappedAdminId ?? null,
+        facilityId: mappedFacilityId ?? null,
         startDateTime: reservation.startDateTime,
         endDateTime: reservation.endDateTime,
         purpose: reservation.purpose,
@@ -432,14 +573,19 @@ async function main() {
 
       if (existing) {
         await production.reservation.update({
-          where: { reservationId: reservation.reservationId },
+          where: { reservationId: existing.reservationId },
           data,
         });
 
         return "updated";
       }
 
-      await production.reservation.create({ data });
+      await production.reservation.create({
+        data: {
+          reservationId: reservation.reservationId,
+          ...data,
+        },
+      });
       return "created";
     });
 
