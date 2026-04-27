@@ -5,7 +5,7 @@ import { AuthForm } from "@/components/auth-form";
 export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f3f3f3] px-4">
-      <div className="w-full max-w-[600px] bg-white px-16 py-20 shadow-md rounded-3xl">
+      <div className="w-full max-w-[600px] rounded-3xl bg-white px-16 py-20 shadow-md">
         <div className="mb-8 flex flex-col items-center">
           <Image
             src="/logo.png"
@@ -24,7 +24,7 @@ export default function LoginPage() {
         <AuthForm mode="user-login" />
 
         <div className="mt-6 flex items-center justify-between text-base text-green-700">
-          <Link href="/admin-login" className="font-medium hover:underline">
+          <Link href="/admin/login" className="font-medium hover:underline">
             Admin Login
           </Link>
 

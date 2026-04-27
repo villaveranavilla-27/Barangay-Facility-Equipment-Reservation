@@ -84,7 +84,7 @@ export function Sidebar({ role }: { role: Role }) {
         })}
       </nav>
 
-      {/* LOGOUT (BOTTOM) */}
+      {/* LOGOUT */}
       <div className="mt-auto border-t border-border px-6 py-4">
         <Button
           variant="ghost"
@@ -110,9 +110,9 @@ export function Sidebar({ role }: { role: Role }) {
               variant="danger"
               onClick={async () => {
                 await signOut({
-                  callbackUrl: role === "admin" ? "/admin-login" : "/login",
+                  // ✅ FIXED HERE
+                  callbackUrl: role === "admin" ? "/admin/login" : "/login",
                 });
-                router.refresh();
               }}
             >
               Confirm

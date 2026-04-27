@@ -94,7 +94,15 @@ export const authOptions: NextAuthOptions = {
   ],
   callbacks: {
     async redirect({ url, baseUrl }) {
-      const appOrigin = getAppOrigin(baseUrl) ?? baseUrl;
+      // Prefer the active request origin first to avoid redirecting to a misconfigured external host.
+      const appOrigin =
+        (() => {
+          try {
+            return new URL(baseUrl).origin;
+          } catch {
+            return null;
+          }
+        })() ?? getAppOrigin(baseUrl) ?? baseUrl;
 
       if (url.startsWith("/")) {
         return new URL(url, `${appOrigin}/`).toString();
