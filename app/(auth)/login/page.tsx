@@ -24,7 +24,7 @@ export default function LoginPage() {
         <AuthForm mode="user-login" />
 
         <div className="mt-6 flex items-center justify-between text-base text-green-700">
-          <Link href="/admin/login" className="font-medium hover:underline">
+          <Link href="/admin-login" className="font-medium hover:underline">
             Admin Login
           </Link>
 

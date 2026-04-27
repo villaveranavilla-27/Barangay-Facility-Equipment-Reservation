@@ -1,15 +1,17 @@
 import { PrismaClient } from "@prisma/client";
 
-const sourceDatabaseUrl = process.env.SOURCE_DATABASE_URL?.trim();
-const targetDatabaseUrl = process.env.TARGET_DATABASE_URL?.trim();
+function requireEnv(name: string) {
+  const value = process.env[name]?.trim();
 
-if (!sourceDatabaseUrl) {
-  throw new Error("SOURCE_DATABASE_URL is required.");
+  if (!value) {
+    throw new Error(`${name} is required.`);
+  }
+
+  return value;
 }
 
-if (!targetDatabaseUrl) {
-  throw new Error("TARGET_DATABASE_URL is required.");
-}
+const sourceDatabaseUrl = requireEnv("SOURCE_DATABASE_URL");
+const targetDatabaseUrl = requireEnv("TARGET_DATABASE_URL");
 
 function createClient(databaseUrl: string) {
   return new PrismaClient({

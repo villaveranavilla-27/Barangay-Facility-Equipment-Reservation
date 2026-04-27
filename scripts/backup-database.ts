@@ -2,17 +2,19 @@ import fs from "node:fs";
 import path from "node:path";
 import { PrismaClient } from "@prisma/client";
 
-const databaseUrl = process.env.BACKUP_DATABASE_URL?.trim();
-const outputPath = process.env.BACKUP_OUTPUT_PATH?.trim();
+function requireEnv(name: string) {
+  const value = process.env[name]?.trim();
+
+  if (!value) {
+    throw new Error(`${name} is required.`);
+  }
+
+  return value;
+}
+
+const databaseUrl = requireEnv("BACKUP_DATABASE_URL");
+const outputPath = requireEnv("BACKUP_OUTPUT_PATH");
 const label = process.env.BACKUP_LABEL?.trim() || "database-backup";
-
-if (!databaseUrl) {
-  throw new Error("BACKUP_DATABASE_URL is required.");
-}
-
-if (!outputPath) {
-  throw new Error("BACKUP_OUTPUT_PATH is required.");
-}
 
 const prisma = new PrismaClient({
   datasources: {

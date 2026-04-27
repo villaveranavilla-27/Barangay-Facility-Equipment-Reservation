@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { signOut } from "next-auth/react";
 import {
   LayoutDashboard,
@@ -45,7 +45,6 @@ const items = {
 
 export function Sidebar({ role }: { role: Role }) {
   const pathname = usePathname();
-  const router = useRouter();
   const [open, setOpen] = useState(false);
 
   return (
@@ -110,8 +109,7 @@ export function Sidebar({ role }: { role: Role }) {
               variant="danger"
               onClick={async () => {
                 await signOut({
-                  // ✅ FIXED HERE
-                  callbackUrl: role === "admin" ? "/admin/login" : "/login",
+                  callbackUrl: role === "admin" ? "/admin-login" : "/login",
                 });
               }}
             >
