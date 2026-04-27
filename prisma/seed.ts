@@ -55,33 +55,88 @@ async function ensureUser() {
 }
 
 async function ensureEquipment(adminId: number) {
-  const existing = await prisma.equipment.findFirst({
-    where: {
+  const equipmentItems = [
+    {
       itemName: "Foldable Chair",
-      adminId,
-    },
-  });
-
-  if (existing) {
-    return prisma.equipment.update({
-      where: { equipmentId: existing.equipmentId },
-      data: {
-        description: "Plastic foldable chair",
-        price: new Prisma.Decimal("25.00"),
-        quantity: 100,
-      },
-    });
-  }
-
-  return prisma.equipment.create({
-    data: {
-      adminId,
-      itemName: "Foldable Chair",
-      description: "Plastic foldable chair",
+      description: "Plastic foldable chair for meetings and events",
       price: new Prisma.Decimal("25.00"),
       quantity: 100,
     },
-  });
+    {
+      itemName: "Event Tent",
+      description: "10x10 ft outdoor event tent with basic setup",
+      price: new Prisma.Decimal("1500.00"),
+      quantity: 6,
+    },
+    {
+      itemName: "Wired Microphone",
+      description: "Standard wired microphone for programs and announcements",
+      price: new Prisma.Decimal("300.00"),
+      quantity: 10,
+    },
+    {
+      itemName: "Sound System",
+      description: "Basic PA sound system set with mixer and amplifier",
+      price: new Prisma.Decimal("2500.00"),
+      quantity: 3,
+    },
+    {
+      itemName: "Folding Table",
+      description: "6 ft rectangular folding table for events and meetings",
+      price: new Prisma.Decimal("150.00"),
+      quantity: 30,
+    },
+    {
+      itemName: "Projector",
+      description: "HD projector for presentations and community programs",
+      price: new Prisma.Decimal("1200.00"),
+      quantity: 3,
+    },
+    {
+      itemName: "Portable Speaker",
+      description: "Rechargeable portable speaker for small gatherings",
+      price: new Prisma.Decimal("700.00"),
+      quantity: 8,
+    },
+  ];
+
+  const savedEquipment = [];
+
+  for (const item of equipmentItems) {
+    const existing = await prisma.equipment.findFirst({
+      where: {
+        itemName: item.itemName,
+        adminId,
+      },
+    });
+
+    if (existing) {
+      savedEquipment.push(
+        await prisma.equipment.update({
+          where: { equipmentId: existing.equipmentId },
+          data: {
+            description: item.description,
+            price: item.price,
+            quantity: item.quantity,
+          },
+        })
+      );
+    } else {
+      savedEquipment.push(
+        await prisma.equipment.create({
+          data: {
+            adminId,
+            itemName: item.itemName,
+            description: item.description,
+            price: item.price,
+            quantity: item.quantity,
+          },
+        })
+      );
+    }
+  }
+
+  return savedEquipment;
 }
 
 async function ensureFacility(adminId: number) {
@@ -226,7 +281,7 @@ async function main() {
   const equipment = await ensureEquipment(admin.adminId);
   const facility = await ensureFacility(admin.adminId);
 
-  await ensureEquipmentReservation(user.userId, admin.adminId, equipment.equipmentId);
+  await ensureEquipmentReservation(user.userId, admin.adminId, equipment[0].equipmentId);
   await ensureFacilityReservation(user.userId, admin.adminId, facility.facilityId);
 
   console.log("Seeding finished successfully.");

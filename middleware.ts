@@ -10,6 +10,15 @@ const protectedAdminPaths = ["/admin/"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  for (const authPath of authPaths) {
+    if (pathname.startsWith(`${authPath}/`)) {
+      const normalizedUrl = request.nextUrl.clone();
+      normalizedUrl.pathname = pathname.slice(authPath.length) || "/";
+      return NextResponse.redirect(normalizedUrl);
+    }
+  }
+
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
   const effectiveToken = isInactiveAdmin(token) ? null : token;
   const role = effectiveToken?.role;
@@ -40,5 +49,11 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/login", "/register", "/admin-login", "/user/:path*", "/admin/:path*"],
+  matcher: [
+    "/login/:path*",
+    "/register/:path*",
+    "/admin-login/:path*",
+    "/user/:path*",
+    "/admin/:path*",
+  ],
 };

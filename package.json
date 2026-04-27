@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "next lint",
     "seed": "tsx prisma/seed.ts",
+    "db:counts": "tsx scripts/migrate-local-to-production.ts --counts",
+    "db:compare": "tsx scripts/migrate-local-to-production.ts --compare",
+    "db:migrate:production": "tsx scripts/migrate-local-to-production.ts --apply",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "postinstall": "prisma generate"
