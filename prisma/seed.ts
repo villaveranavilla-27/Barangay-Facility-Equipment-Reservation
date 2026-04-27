@@ -1,6 +1,11 @@
-import { PrismaClient, Prisma, FacilityStatus, ReservationStatus, EquipmentReturnStatus, AdminRole } from "@prisma/client";
+import crypto from "node:crypto";
+import { PrismaClient, Prisma, FacilityStatus, ReservationStatus, AdminRole } from "@prisma/client";
 
 const prisma = new PrismaClient();
+
+function md5(value: string) {
+  return crypto.createHash("md5").update(value).digest("hex");
+}
 
 async function ensureAdmin() {
   return prisma.admin.upsert({
@@ -10,6 +15,7 @@ async function ensureAdmin() {
       birthdate: new Date("1990-01-01"),
       gender: "Male",
       address: "Barangay Hall",
+      password: md5("admin123"),
       contactNumber: "09123456789",
       email: "admin@example.com",
       role: AdminRole.ADMIN,
@@ -21,7 +27,7 @@ async function ensureAdmin() {
       gender: "Male",
       address: "Barangay Hall",
       username: "admin",
-      password: "admin123",
+      password: md5("admin123"),
       contactNumber: "09123456789",
       email: "admin@example.com",
       role: AdminRole.ADMIN,
@@ -38,6 +44,7 @@ async function ensureUser() {
       birthdate: new Date("2001-01-01"),
       gender: "Female",
       address: "Barangay 1",
+      password: md5("user123"),
       contactNumber: "09999999999",
       email: "user1@example.com",
     },
@@ -47,7 +54,7 @@ async function ensureUser() {
       gender: "Female",
       address: "Barangay 1",
       username: "user1",
-      password: "user123",
+      password: md5("user123"),
       contactNumber: "09999999999",
       email: "user1@example.com",
     },
