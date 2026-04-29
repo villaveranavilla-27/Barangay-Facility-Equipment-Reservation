@@ -8,7 +8,6 @@ import {
   Card,
   Input,
   Modal,
-  Select,
 } from "@/components/common";
 
 type UserRecord = {
@@ -42,11 +41,6 @@ type AdminListResponse = {
   admins: AdminRecord[];
 };
 
-const emptyForm = {
-  userId: "",
-  adminRole: "ADMIN" as "CORE_ADMIN" | "ADMIN",
-};
-
 function formatDateTime(value?: string | null) {
   if (!value) {
     return "N/A";
@@ -72,13 +66,11 @@ export function UsersDirectory() {
   const [canManageAdmins, setCanManageAdmins] = useState(false);
   const [currentAdminId, setCurrentAdminId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [createModalOpen, setCreateModalOpen] = useState(false);
   const [removingAdmin, setRemovingAdmin] = useState<AdminRecord | null>(null);
-  const [isCreating, setIsCreating] = useState(false);
+  const [adminPendingUserId, setAdminPendingUserId] = useState<number | null>(null);
   const [removalPendingId, setRemovalPendingId] = useState<number | null>(null);
   const [statusPendingUserId, setStatusPendingUserId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
-  const [form, setForm] = useState(emptyForm);
 
   async function readJson<T>(res: Response): Promise<T | null> {
     const text = await res.text();
@@ -136,54 +128,90 @@ export function UsersDirectory() {
   const filteredUsers = users.filter((user) =>
     `${user.name} ${user.email} ${user.username}`.toLowerCase().includes(query.toLowerCase())
   );
-  const activeAdminUsernames = new Set(
+  const activeAdminsByUsername = new Map(
     admins
       .filter((admin) => admin.isActive)
-      .map((admin) => admin.username.toLowerCase())
+      .map((admin) => [admin.username.toLowerCase(), admin] as const)
   );
   const currentAdminUsername =
     admins.find((admin) => admin.adminId === currentAdminId)?.username ?? null;
-  const eligibleUsers = users.filter(
-    (user) => user.isActive && !activeAdminUsernames.has(user.username.toLowerCase())
-  );
-  const selectedUser =
-    eligibleUsers.find((user) => String(user.userId) === form.userId) ?? null;
 
-  async function createAdmin() {
-    if (isCreating) {
+  async function assignAdmin(user: UserRecord) {
+    if (adminPendingUserId === user.userId) {
       return;
     }
 
-    if (!form.userId) {
-      toast.error("Select an active user account to grant admin access.");
+    if (!canManageAdmins) {
+      toast.error("Only core admins can manage administrator access.");
       return;
     }
 
-    setIsCreating(true);
+    const existingUser = users.find((entry) => entry.userId === user.userId);
+
+    if (!existingUser) {
+      toast.error("User account not found.");
+      return;
+    }
+
+    if (!existingUser.isActive) {
+      toast.error("Only active user accounts can be granted admin access.");
+      return;
+    }
+
+    if (activeAdminsByUsername.has(existingUser.username.toLowerCase())) {
+      toast.error("This user account already has active admin access.");
+      return;
+    }
+
+    setAdminPendingUserId(existingUser.userId);
 
     try {
       const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          userId: Number(form.userId),
-          adminRole: form.adminRole,
+          userId: existingUser.userId,
         }),
       });
-      const data = await readJson<{ error?: string; message?: string }>(res);
+      const data = await readJson<{
+        error?: string;
+        message?: string;
+        admin?: Omit<AdminRecord, "canBeRemoved" | "removalBlockedReason">;
+      }>(res);
 
       if (!res.ok) {
-        throw new Error(data?.error || "Unable to create admin");
+        throw new Error(data?.error || "Unable to grant admin access");
       }
 
       toast.success(data?.message || "Admin access granted");
-      setCreateModalOpen(false);
-      setForm(emptyForm);
-      await load();
+
+      if (data?.admin) {
+        const grantedAdmin = data.admin;
+
+        setAdmins((current) => {
+          const next = current.filter(
+            (admin) =>
+              admin.adminId !== grantedAdmin.adminId &&
+              admin.username.toLowerCase() !== grantedAdmin.username.toLowerCase()
+          );
+
+          return [
+            {
+              ...grantedAdmin,
+              canBeRemoved: grantedAdmin.adminId !== currentAdminId,
+              removalBlockedReason:
+                grantedAdmin.adminId === currentAdminId
+                  ? "You are currently signed in with this admin account."
+                  : null,
+            },
+            ...next,
+          ].sort((left, right) => right.adminId - left.adminId);
+        });
+      }
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to create admin");
+      toast.error(error instanceof Error ? error.message : "Unable to grant admin access");
     } finally {
-      setIsCreating(false);
+      setAdminPendingUserId(null);
     }
   }
 
@@ -257,15 +285,6 @@ export function UsersDirectory() {
     }
   }
 
-  function closeCreateModal() {
-    if (isCreating) {
-      return;
-    }
-
-    setCreateModalOpen(false);
-    setForm(emptyForm);
-  }
-
   function closeRemoveModal() {
     if (removalPendingId === removingAdmin?.adminId) {
       return;
@@ -284,13 +303,11 @@ export function UsersDirectory() {
             onChange={(e) => setQuery(e.target.value)}
           />
 
-          {canManageAdmins ? (
-            <Button onClick={() => setCreateModalOpen(true)}>Add Admin</Button>
-          ) : (
-            <p className="text-sm text-text-secondary">
-              Only core admins can add or remove administrator access.
-            </p>
-          )}
+          <p className="text-sm text-text-secondary">
+            {canManageAdmins
+              ? "Use the row actions to grant admin access."
+              : "Only core admins can add or remove administrator access."}
+          </p>
         </div>
       </Card>
 
@@ -311,58 +328,83 @@ export function UsersDirectory() {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((user) => (
-                <tr key={user.userId} className="border-b border-border">
-                  <td className="py-3 pr-4">{user.name}</td>
-                  <td className="py-3 pr-4">{user.username}</td>
-                  <td className="py-3 pr-4">{user.email}</td>
-                  <td className="py-3 pr-4">{user.contactNumber}</td>
-                  <td className="py-3 pr-4">
-                    <Badge tone={user.isActive ? "green" : "red"}>
-                      {user.isActive ? "Active" : "Inactive"}
-                    </Badge>
-                  </td>
-                  <td className="py-3 pr-4">
-                    <div className="flex flex-wrap gap-2">
-                      <Badge tone="neutral">User</Badge>
-                      {activeAdminUsernames.has(user.username.toLowerCase()) ? (
-                        <Badge tone="blue">Admin Access</Badge>
-                      ) : null}
-                    </div>
-                  </td>
-                  <td className="py-3">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Button
-                        variant={user.isActive ? "danger" : "secondary"}
-                        className="px-3 py-1.5 text-sm"
-                        disabled={
-                          statusPendingUserId === user.userId ||
-                          (user.isActive && currentAdminUsername === user.username)
-                        }
-                        onClick={() => void toggleUserStatus(user)}
-                      >
-                        {statusPendingUserId === user.userId
-                          ? user.isActive
-                            ? "Deactivating..."
-                            : "Activating..."
-                          : user.isActive
-                            ? "Deactivate"
-                            : "Activate"}
-                      </Button>
-                      {user.isActive && currentAdminUsername === user.username ? (
-                        <span className="text-xs text-text-secondary">
-                          Current admin-linked user
-                        </span>
-                      ) : null}
-                      {!user.isActive && user.deactivatedAt ? (
-                        <span className="text-xs text-text-secondary">
-                          Since {formatDateTime(user.deactivatedAt)}
-                        </span>
-                      ) : null}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {filteredUsers.map((user) => {
+                const linkedAdmin =
+                  activeAdminsByUsername.get(user.username.toLowerCase()) ?? null;
+                const isCurrentAdminLinkedUser =
+                  user.isActive && currentAdminUsername === user.username;
+
+                return (
+                  <tr key={user.userId} className="border-b border-border">
+                    <td className="py-3 pr-4">{user.name}</td>
+                    <td className="py-3 pr-4">{user.username}</td>
+                    <td className="py-3 pr-4">{user.email}</td>
+                    <td className="py-3 pr-4">{user.contactNumber}</td>
+                    <td className="py-3 pr-4">
+                      <Badge tone={user.isActive ? "green" : "red"}>
+                        {user.isActive ? "Active" : "Inactive"}
+                      </Badge>
+                    </td>
+                    <td className="py-3 pr-4">
+                      <Badge tone={linkedAdmin ? "blue" : "neutral"}>
+                        {linkedAdmin
+                          ? linkedAdmin.role === "CORE_ADMIN"
+                            ? "Core Admin"
+                            : "Admin"
+                          : "User"}
+                      </Badge>
+                    </td>
+                    <td className="py-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                          variant={user.isActive ? "danger" : "secondary"}
+                          className="px-3 py-1.5 text-sm"
+                          disabled={
+                            statusPendingUserId === user.userId || isCurrentAdminLinkedUser
+                          }
+                          onClick={() => void toggleUserStatus(user)}
+                        >
+                          {statusPendingUserId === user.userId
+                            ? user.isActive
+                              ? "Deactivating..."
+                              : "Activating..."
+                            : user.isActive
+                              ? "Deactivate"
+                              : "Activate"}
+                        </Button>
+                        {canManageAdmins ? (
+                          <Button
+                            variant="secondary"
+                            className="px-3 py-1.5 text-sm"
+                            disabled={
+                              adminPendingUserId === user.userId ||
+                              !user.isActive ||
+                              Boolean(linkedAdmin)
+                            }
+                            onClick={() => void assignAdmin(user)}
+                          >
+                            {adminPendingUserId === user.userId
+                              ? "Assigning..."
+                              : linkedAdmin
+                                ? "Already Admin"
+                                : "Make Admin"}
+                          </Button>
+                        ) : null}
+                        {isCurrentAdminLinkedUser ? (
+                          <span className="text-xs text-text-secondary">
+                            Current admin-linked user
+                          </span>
+                        ) : null}
+                        {!user.isActive && user.deactivatedAt ? (
+                          <span className="text-xs text-text-secondary">
+                            Since {formatDateTime(user.deactivatedAt)}
+                          </span>
+                        ) : null}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -434,80 +476,6 @@ export function UsersDirectory() {
           ))}
         </div>
       </Card>
-
-      <Modal
-        open={createModalOpen}
-        title="Add Admin"
-        onClose={closeCreateModal}
-        footer={
-          <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
-            <Button
-              variant="ghost"
-              className="w-full sm:w-auto"
-              disabled={isCreating}
-              onClick={closeCreateModal}
-            >
-              Cancel
-            </Button>
-            <Button
-              className="w-full sm:w-auto"
-              disabled={isCreating || !form.userId}
-              onClick={() => void createAdmin()}
-            >
-              {isCreating ? "Saving..." : "Grant Admin Access"}
-            </Button>
-          </div>
-        }
-      >
-        <div className="space-y-4">
-          <p className="text-sm text-text-secondary">
-            Only existing active user accounts can be granted admin access.
-          </p>
-          <Select
-            value={form.userId}
-            onChange={(e) => setForm({ ...form, userId: e.target.value })}
-          >
-            <option value="">Select a user account</option>
-            {eligibleUsers.map((user) => (
-              <option key={user.userId} value={user.userId}>
-                {user.name} (@{user.username})
-              </option>
-            ))}
-          </Select>
-          {selectedUser ? (
-            <div className="rounded-xl border border-border p-4 text-sm text-text-secondary">
-              <p>
-                <strong>Name:</strong> {selectedUser.name}
-              </p>
-              <p>
-                <strong>Username:</strong> @{selectedUser.username}
-              </p>
-              <p>
-                <strong>Email:</strong> {selectedUser.email}
-              </p>
-              <p>
-                <strong>Contact:</strong> {selectedUser.contactNumber}
-              </p>
-            </div>
-          ) : eligibleUsers.length === 0 ? (
-            <p className="text-sm text-text-secondary">
-              No eligible active user accounts are currently available for admin access.
-            </p>
-          ) : null}
-          <Select
-            value={form.adminRole}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                adminRole: e.target.value as "CORE_ADMIN" | "ADMIN",
-              })
-            }
-          >
-            <option value="ADMIN">Regular Admin</option>
-            <option value="CORE_ADMIN">Core Admin</option>
-          </Select>
-        </div>
-      </Modal>
 
       <Modal
         open={!!removingAdmin}

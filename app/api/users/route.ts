@@ -239,9 +239,13 @@ export async function POST(request: Request) {
         },
       });
 
-      if (!existingUser || !existingUser.isActive) {
+      if (!existingUser) {
+        throw new AdminManagementError(404, "User account not found.");
+      }
+
+      if (!existingUser.isActive) {
         throw new AdminManagementError(
-          404,
+          400,
           "Only active user accounts in this system can be assigned as admins."
         );
       }
