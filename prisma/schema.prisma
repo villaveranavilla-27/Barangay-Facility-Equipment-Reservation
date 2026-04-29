@@ -24,6 +24,11 @@ enum EquipmentReturnStatus {
   RETURNED
 }
 
+enum Role {
+  USER
+  ADMIN
+}
+
 enum AdminRole {
   CORE_ADMIN
   ADMIN
@@ -60,6 +65,7 @@ model User {
   password      String        @db.VarChar(191) @map("Password")
   contactNumber String        @db.VarChar(50) @map("Contact number")
   email         String        @db.VarChar(191) @map("email")
+  role          Role          @default(USER) @map("Role")
   isActive      Boolean       @default(true) @map("Is_Active")
   deactivatedAt DateTime?     @map("DeactivatedAt")
   reservation   Reservation[]

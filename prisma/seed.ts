@@ -1,5 +1,12 @@
 import crypto from "node:crypto";
-import { PrismaClient, Prisma, FacilityStatus, ReservationStatus, AdminRole } from "@prisma/client";
+import {
+  PrismaClient,
+  Prisma,
+  FacilityStatus,
+  ReservationStatus,
+  AdminRole,
+  Role,
+} from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -18,7 +25,7 @@ async function ensureAdmin() {
       password: md5("admin123"),
       contactNumber: "09123456789",
       email: "admin@example.com",
-      role: AdminRole.ADMIN,
+      role: AdminRole.CORE_ADMIN,
       isActive: true,
     },
     create: {
@@ -30,7 +37,7 @@ async function ensureAdmin() {
       password: md5("admin123"),
       contactNumber: "09123456789",
       email: "admin@example.com",
-      role: AdminRole.ADMIN,
+      role: AdminRole.CORE_ADMIN,
       isActive: true,
     },
   });
@@ -47,6 +54,7 @@ async function ensureUser() {
       password: md5("user123"),
       contactNumber: "09999999999",
       email: "user1@example.com",
+      role: Role.USER,
     },
     create: {
       name: "User One",
@@ -57,6 +65,7 @@ async function ensureUser() {
       password: md5("user123"),
       contactNumber: "09999999999",
       email: "user1@example.com",
+      role: Role.USER,
     },
   });
 }

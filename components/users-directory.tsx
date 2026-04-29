@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import AddAdminModal from "@/components/AddAdminModal";
 import {
   Badge,
   Button,
@@ -16,6 +18,7 @@ type UserRecord = {
   username: string;
   email: string;
   contactNumber: string;
+  role: "USER" | "ADMIN";
   isActive: boolean;
   deactivatedAt?: string | null;
 };
@@ -38,6 +41,7 @@ type AdminListResponse = {
   currentAdminId: number;
   currentAdminRole: "CORE_ADMIN" | "ADMIN" | null;
   canManageAdmins: boolean;
+  canPromoteAdmins: boolean;
   admins: AdminRecord[];
 };
 
@@ -61,13 +65,15 @@ function formatDateTime(value?: string | null) {
 }
 
 export function UsersDirectory() {
+  const router = useRouter();
   const [users, setUsers] = useState<UserRecord[]>([]);
   const [admins, setAdmins] = useState<AdminRecord[]>([]);
   const [canManageAdmins, setCanManageAdmins] = useState(false);
+  const [canPromoteAdmins, setCanPromoteAdmins] = useState(false);
   const [currentAdminId, setCurrentAdminId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [open, setOpen] = useState(false);
   const [removingAdmin, setRemovingAdmin] = useState<AdminRecord | null>(null);
-  const [adminPendingUserId, setAdminPendingUserId] = useState<number | null>(null);
   const [removalPendingId, setRemovalPendingId] = useState<number | null>(null);
   const [statusPendingUserId, setStatusPendingUserId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
@@ -109,12 +115,14 @@ export function UsersDirectory() {
       setUsers(Array.isArray(usersData) ? usersData : []);
       setAdmins(adminsData?.admins ?? []);
       setCanManageAdmins(Boolean(adminsData?.canManageAdmins));
+      setCanPromoteAdmins(Boolean(adminsData?.canPromoteAdmins));
       setCurrentAdminId(adminsData?.currentAdminId ?? null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to load access data.");
       setUsers([]);
       setAdmins([]);
       setCanManageAdmins(false);
+      setCanPromoteAdmins(false);
       setCurrentAdminId(null);
     } finally {
       setLoading(false);
@@ -135,85 +143,6 @@ export function UsersDirectory() {
   );
   const currentAdminUsername =
     admins.find((admin) => admin.adminId === currentAdminId)?.username ?? null;
-
-  async function assignAdmin(user: UserRecord) {
-    if (adminPendingUserId === user.userId) {
-      return;
-    }
-
-    if (!canManageAdmins) {
-      toast.error("Only core admins can manage administrator access.");
-      return;
-    }
-
-    const existingUser = users.find((entry) => entry.userId === user.userId);
-
-    if (!existingUser) {
-      toast.error("User account not found.");
-      return;
-    }
-
-    if (!existingUser.isActive) {
-      toast.error("Only active user accounts can be granted admin access.");
-      return;
-    }
-
-    if (activeAdminsByUsername.has(existingUser.username.toLowerCase())) {
-      toast.error("This user account already has active admin access.");
-      return;
-    }
-
-    setAdminPendingUserId(existingUser.userId);
-
-    try {
-      const res = await fetch("/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: existingUser.userId,
-        }),
-      });
-      const data = await readJson<{
-        error?: string;
-        message?: string;
-        admin?: Omit<AdminRecord, "canBeRemoved" | "removalBlockedReason">;
-      }>(res);
-
-      if (!res.ok) {
-        throw new Error(data?.error || "Unable to grant admin access");
-      }
-
-      toast.success(data?.message || "Admin access granted");
-
-      if (data?.admin) {
-        const grantedAdmin = data.admin;
-
-        setAdmins((current) => {
-          const next = current.filter(
-            (admin) =>
-              admin.adminId !== grantedAdmin.adminId &&
-              admin.username.toLowerCase() !== grantedAdmin.username.toLowerCase()
-          );
-
-          return [
-            {
-              ...grantedAdmin,
-              canBeRemoved: grantedAdmin.adminId !== currentAdminId,
-              removalBlockedReason:
-                grantedAdmin.adminId === currentAdminId
-                  ? "You are currently signed in with this admin account."
-                  : null,
-            },
-            ...next,
-          ].sort((left, right) => right.adminId - left.adminId);
-        });
-      }
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Unable to grant admin access");
-    } finally {
-      setAdminPendingUserId(null);
-    }
-  }
 
   async function toggleUserStatus(user: UserRecord) {
     if (statusPendingUserId === user.userId) {
@@ -369,24 +298,6 @@ export function UsersDirectory() {
                               ? "Deactivate"
                               : "Activate"}
                         </Button>
-                        {canManageAdmins ? (
-                          <Button
-                            variant="secondary"
-                            className="px-3 py-1.5 text-sm"
-                            disabled={
-                              adminPendingUserId === user.userId ||
-                              !user.isActive ||
-                              Boolean(linkedAdmin)
-                            }
-                            onClick={() => void assignAdmin(user)}
-                          >
-                            {adminPendingUserId === user.userId
-                              ? "Assigning..."
-                              : linkedAdmin
-                                ? "Already Admin"
-                                : "Make Admin"}
-                          </Button>
-                        ) : null}
                         {isCurrentAdminLinkedUser ? (
                           <span className="text-xs text-text-secondary">
                             Current admin-linked user
@@ -414,10 +325,15 @@ export function UsersDirectory() {
             <p className="mt-1 text-sm text-text-secondary">
               Active and revoked admin accounts are listed here for access review.
             </p>
+            {currentAdminId != null ? (
+              <p className="mt-1 text-xs text-text-secondary">
+                Signed in as admin #{currentAdminId}.
+              </p>
+            ) : null}
           </div>
 
-          {currentAdminId != null ? (
-            <Badge tone="blue">Current Admin #{currentAdminId}</Badge>
+          {canPromoteAdmins ? (
+            <Button onClick={() => setOpen(true)}>+ Add New Admin</Button>
           ) : null}
         </div>
 
@@ -516,6 +432,15 @@ export function UsersDirectory() {
           </p>
         </div>
       </Modal>
+
+      <AddAdminModal
+        open={open}
+        onClose={() => setOpen(false)}
+        onSuccess={() => {
+          router.refresh();
+          void load();
+        }}
+      />
     </div>
   );
 }

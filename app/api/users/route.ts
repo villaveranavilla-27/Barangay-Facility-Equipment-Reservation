@@ -1,4 +1,4 @@
-import { Prisma } from "@prisma/client";
+import { Prisma, Role } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { ADMIN_ROLE } from "@/lib/admin-roles";
@@ -102,6 +102,7 @@ export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   const { searchParams } = new URL(request.url);
   const kind = searchParams.get("kind");
+  const search = searchParams.get("search")?.trim() ?? "";
 
   if (kind === "admins") {
     if (!isActiveAdmin(session?.user)) {
@@ -123,6 +124,7 @@ export async function GET(request: Request) {
       currentAdminId,
       currentAdminRole: session?.user?.adminRole ?? null,
       canManageAdmins: isCoreAdmin(session?.user),
+      canPromoteAdmins: isActiveAdmin(session?.user),
       admins: admins.map((admin) =>
         serializeAdminDirectoryRecord(admin, currentAdminId, {
           activeAdminCount,
@@ -134,6 +136,15 @@ export async function GET(request: Request) {
 
   if (isActiveAdmin(session?.user)) {
     const users = await prisma.user.findMany({
+      where: search
+        ? {
+            OR: [
+              { name: { contains: search } },
+              { email: { contains: search } },
+              { username: { contains: search } },
+            ],
+          }
+        : undefined,
       orderBy: { userId: "desc" },
       select: {
         userId: true,
@@ -144,11 +155,37 @@ export async function GET(request: Request) {
         username: true,
         contactNumber: true,
         email: true,
+        role: true,
         isActive: true,
         deactivatedAt: true,
       },
     });
-    return NextResponse.json(users);
+
+    const activeAdminLinks =
+      users.length > 0
+        ? await prisma.admin.findMany({
+            where: {
+              isActive: true,
+              username: {
+                in: users.map((user) => user.username),
+              },
+            },
+            select: { username: true },
+          })
+        : [];
+
+    const activeAdminUsernames = new Set(
+      activeAdminLinks.map((admin) => admin.username.toLowerCase())
+    );
+
+    return NextResponse.json(
+      users.map((user) => ({
+        ...user,
+        role: activeAdminUsernames.has(user.username.toLowerCase())
+          ? Role.ADMIN
+          : Role.USER,
+      }))
+    );
   }
 
   if (isInactiveAdmin(session?.user)) {
@@ -276,49 +313,47 @@ export async function POST(request: Request) {
         );
       }
 
-      if (existingAdmin) {
-        const reactivatedAdmin = await tx.admin.update({
-          where: { adminId: existingAdmin.adminId },
-          data: {
-            name: existingUser.name,
-            username: existingUser.username,
-            email: existingUser.email,
-            password: existingUser.password,
-            contactNumber: existingUser.contactNumber,
-            gender: existingUser.gender,
-            birthdate: existingUser.birthdate,
-            address: existingUser.address,
-            role: data.adminRole,
-            isActive: true,
-            deactivatedAt: null,
-          },
-          select: adminSelect,
-        });
+      const admin = existingAdmin
+        ? await tx.admin.update({
+            where: { adminId: existingAdmin.adminId },
+            data: {
+              name: existingUser.name,
+              username: existingUser.username,
+              email: existingUser.email,
+              password: existingUser.password,
+              contactNumber: existingUser.contactNumber,
+              gender: existingUser.gender,
+              birthdate: existingUser.birthdate,
+              address: existingUser.address,
+              role: data.adminRole,
+              isActive: true,
+              deactivatedAt: null,
+            },
+            select: adminSelect,
+          })
+        : await tx.admin.create({
+            data: {
+              name: existingUser.name,
+              username: existingUser.username,
+              email: existingUser.email,
+              password: existingUser.password,
+              contactNumber: existingUser.contactNumber,
+              gender: existingUser.gender,
+              birthdate: existingUser.birthdate,
+              address: existingUser.address,
+              role: data.adminRole,
+            },
+            select: adminSelect,
+          });
 
-        return {
-          admin: reactivatedAdmin,
-          reactivated: true,
-        };
-      }
-
-      const createdAdmin = await tx.admin.create({
-        data: {
-          name: existingUser.name,
-          username: existingUser.username,
-          email: existingUser.email,
-          password: existingUser.password,
-          contactNumber: existingUser.contactNumber,
-          gender: existingUser.gender,
-          birthdate: existingUser.birthdate,
-          address: existingUser.address,
-          role: data.adminRole,
-        },
-        select: adminSelect,
+      await tx.user.update({
+        where: { userId: existingUser.userId },
+        data: { role: Role.ADMIN },
       });
 
       return {
-        admin: createdAdmin,
-        reactivated: false,
+        admin,
+        reactivated: Boolean(existingAdmin),
       };
     });
 
@@ -590,6 +625,11 @@ export async function DELETE(request: Request) {
       }
 
       if (!targetAdmin.isActive) {
+        await tx.user.updateMany({
+          where: { username: targetAdmin.username },
+          data: { role: Role.USER },
+        });
+
         return {
           admin: targetAdmin,
           alreadyRemoved: true,
@@ -640,6 +680,11 @@ export async function DELETE(request: Request) {
         }
 
         if (!latest.isActive) {
+          await tx.user.updateMany({
+            where: { username: latest.username },
+            data: { role: Role.USER },
+          });
+
           return {
             admin: latest,
             alreadyRemoved: true,
@@ -661,6 +706,11 @@ export async function DELETE(request: Request) {
       if (!latest) {
         throw new AdminManagementError(404, "Admin account not found.");
       }
+
+      await tx.user.updateMany({
+        where: { username: latest.username },
+        data: { role: Role.USER },
+      });
 
       return {
         admin: latest,
