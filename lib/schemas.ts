@@ -2,6 +2,30 @@ import { FacilityStatus, ReservationStatus } from "@prisma/client";
 import { z } from "zod";
 import { ADMIN_ROLE, ADMIN_ROLE_VALUES } from "@/lib/admin-roles";
 
+const personNamePattern = /^[A-Za-z][A-Za-z\s.'-]*$/;
+const usernamePattern = /^[A-Za-z0-9_]+$/;
+const contactNumberPattern = /^\d{7,15}$/;
+const addressPattern = /^[A-Za-z0-9\s.,#'/-]*$/;
+const catalogNamePattern = /^[A-Za-z0-9][A-Za-z0-9\s.,'()&/-]*$/;
+
+function isValidDateOnly(value: string) {
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+function normalizeOptionalString(value: unknown) {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value !== "string") {
+    return value;
+  }
+
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
+}
+
 const optionalNonNegativeNumber = z.preprocess((value) => {
   if (value === "" || value === null || value === undefined) {
     return null;
@@ -26,42 +50,114 @@ const optionalPositiveInt = z.preprocess((value) => {
   return typeof value === "string" ? Number(value) : value;
 }, z.number().int().positive().nullable());
 
+const nameSchema = z
+  .string()
+  .trim()
+  .min(2, "Name must be at least 2 characters")
+  .max(191, "Name is too long")
+  .regex(personNamePattern, "Name contains invalid characters");
+
+const usernameSchema = z
+  .string()
+  .trim()
+  .min(3, "Username must be at least 3 characters")
+  .max(191, "Username is too long")
+  .regex(
+    usernamePattern,
+    "Username may only contain letters, numbers, and underscores"
+  );
+
+const emailSchema = z
+  .string()
+  .trim()
+  .max(191, "Email is too long")
+  .email("Email must be valid");
+
+const passwordSchema = z
+  .string()
+  .min(4, "Password must be at least 4 characters")
+  .max(191, "Password is too long");
+
+const contactNumberSchema = z
+  .string()
+  .trim()
+  .regex(contactNumberPattern, "Contact number must contain 7 to 15 digits");
+
+const genderSchema = z.enum(["Male", "Female", "Other", "Prefer not to say"]);
+
+const optionalBirthdateSchema = z.preprocess(
+  normalizeOptionalString,
+  z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/, "Birthdate must use YYYY-MM-DD format")
+    .refine(isValidDateOnly, "Birthdate must be a valid calendar date")
+    .refine(
+      (value) => new Date(`${value}T00:00:00.000Z`) <= new Date(),
+      "Birthdate cannot be in the future"
+    )
+    .nullable()
+);
+
+const optionalAddressSchema = z.preprocess(
+  normalizeOptionalString,
+  z
+    .string()
+    .max(191, "Address is too long")
+    .regex(addressPattern, "Address contains invalid characters")
+    .nullable()
+);
+
+const optionalDescriptionSchema = z.preprocess(
+  normalizeOptionalString,
+  z.string().max(191, "Description is too long").nullable()
+);
+
+const catalogNameSchema = z
+  .string()
+  .trim()
+  .min(2, "Name must be at least 2 characters")
+  .max(191, "Name is too long")
+  .regex(catalogNamePattern, "Name contains invalid characters");
+
 export const loginSchema = z.object({
-  identifier: z.string().min(1),
-  password: z.string().min(4),
+  identifier: z.string().trim().min(1),
+  password: passwordSchema,
   intendedRole: z.enum(["admin", "user"]),
 });
 
 export const registerSchema = z.object({
-  name: z.string().min(2),
-  username: z.string().min(3),
-  email: z.string().email(),
-  password: z.string().min(4),
-  contactNumber: z.string().min(7),
-  gender: z.string().min(1),
-  birthdate: z.string().optional().nullable(),
-  address: z.string().optional().nullable(),
+  name: nameSchema,
+  username: usernameSchema,
+  email: emailSchema,
+  password: passwordSchema,
+  contactNumber: contactNumberSchema,
+  gender: genderSchema,
+  birthdate: optionalBirthdateSchema,
+  address: optionalAddressSchema,
 });
 
 export const userUpdateSchema = z.object({
-  name: z.string().min(2),
-  email: z.string().email(),
-  contactNumber: z.string().min(7),
-  gender: z.string().min(1),
-  birthdate: z.string().optional().nullable(),
-  address: z.string().optional().nullable(),
-  password: z.string().min(4).optional().or(z.literal("")),
+  name: nameSchema,
+  email: emailSchema,
+  contactNumber: contactNumberSchema,
+  gender: genderSchema,
+  birthdate: optionalBirthdateSchema,
+  address: optionalAddressSchema,
+  password: z.preprocess(
+    (value) => {
+      if (typeof value !== "string") {
+        return value;
+      }
+
+      const trimmed = value.trim();
+      return trimmed === "" ? undefined : trimmed;
+    },
+    passwordSchema.optional()
+  ),
 });
 
 export const adminCreateSchema = z.object({
-  name: z.string().min(2),
-  username: z.string().min(3),
-  email: z.string().email(),
-  password: z.string().min(4),
-  contactNumber: z.string().min(7),
-  gender: z.string().min(1),
-  birthdate: z.string().optional().nullable(),
-  address: z.string().optional().nullable(),
+  userId: z.coerce.number().int().positive(),
   adminRole: z.enum(ADMIN_ROLE_VALUES).optional().default(ADMIN_ROLE.ADMIN),
 });
 
@@ -69,16 +165,21 @@ export const adminRemovalSchema = z.object({
   adminId: z.coerce.number().int().positive(),
 });
 
+export const userAccountStatusSchema = z.object({
+  userId: z.coerce.number().int().positive(),
+  isActive: z.boolean(),
+});
+
 export const facilitySchema = z.object({
-  itemName: z.string().min(2),
-  description: z.string().optional().nullable(),
+  itemName: catalogNameSchema,
+  description: optionalDescriptionSchema,
   status: z.nativeEnum(FacilityStatus),
   pricePerDay: z.coerce.number().int().nonnegative(),
 });
 
 export const equipmentSchema = z.object({
-  itemName: z.string().min(2),
-  description: z.string().optional().nullable(),
+  itemName: catalogNameSchema,
+  description: optionalDescriptionSchema,
   price: optionalNonNegativeNumber,
   quantity: optionalNonNegativeInt,
 });

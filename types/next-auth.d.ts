@@ -6,6 +6,7 @@ declare module "next-auth" {
     role: "ADMIN" | "USER";
     adminRole?: "CORE_ADMIN" | "ADMIN" | null;
     adminActive?: boolean | null;
+    userActive?: boolean | null;
   }
 
   interface Session {
@@ -14,6 +15,7 @@ declare module "next-auth" {
       role: "USER" | "ADMIN";
       adminRole?: "CORE_ADMIN" | "ADMIN" | null;
       adminActive?: boolean | null;
+      userActive?: boolean | null;
     } & DefaultSession["user"];
   }
 }
@@ -24,6 +26,7 @@ declare module "next-auth/jwt" {
     role?: "ADMIN" | "USER";
     adminRole?: "CORE_ADMIN" | "ADMIN" | null;
     adminActive?: boolean | null;
+    userActive?: boolean | null;
     email?: string | null;
     name?: string | null;
   }

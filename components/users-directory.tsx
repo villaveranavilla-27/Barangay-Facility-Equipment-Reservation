@@ -9,7 +9,6 @@ import {
   Input,
   Modal,
   Select,
-  Textarea,
 } from "@/components/common";
 
 type UserRecord = {
@@ -18,6 +17,8 @@ type UserRecord = {
   username: string;
   email: string;
   contactNumber: string;
+  isActive: boolean;
+  deactivatedAt?: string | null;
 };
 
 type AdminRecord = {
@@ -42,14 +43,7 @@ type AdminListResponse = {
 };
 
 const emptyForm = {
-  name: "",
-  username: "",
-  email: "",
-  password: "",
-  contactNumber: "",
-  gender: "Male",
-  birthdate: "",
-  address: "",
+  userId: "",
   adminRole: "ADMIN" as "CORE_ADMIN" | "ADMIN",
 };
 
@@ -82,6 +76,7 @@ export function UsersDirectory() {
   const [removingAdmin, setRemovingAdmin] = useState<AdminRecord | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [removalPendingId, setRemovalPendingId] = useState<number | null>(null);
+  const [statusPendingUserId, setStatusPendingUserId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [form, setForm] = useState(emptyForm);
 
@@ -141,9 +136,26 @@ export function UsersDirectory() {
   const filteredUsers = users.filter((user) =>
     `${user.name} ${user.email} ${user.username}`.toLowerCase().includes(query.toLowerCase())
   );
+  const activeAdminUsernames = new Set(
+    admins
+      .filter((admin) => admin.isActive)
+      .map((admin) => admin.username.toLowerCase())
+  );
+  const currentAdminUsername =
+    admins.find((admin) => admin.adminId === currentAdminId)?.username ?? null;
+  const eligibleUsers = users.filter(
+    (user) => user.isActive && !activeAdminUsernames.has(user.username.toLowerCase())
+  );
+  const selectedUser =
+    eligibleUsers.find((user) => String(user.userId) === form.userId) ?? null;
 
   async function createAdmin() {
     if (isCreating) {
+      return;
+    }
+
+    if (!form.userId) {
+      toast.error("Select an active user account to grant admin access.");
       return;
     }
 
@@ -153,7 +165,10 @@ export function UsersDirectory() {
       const res = await fetch("/api/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({
+          userId: Number(form.userId),
+          adminRole: form.adminRole,
+        }),
       });
       const data = await readJson<{ error?: string; message?: string }>(res);
 
@@ -161,7 +176,7 @@ export function UsersDirectory() {
         throw new Error(data?.error || "Unable to create admin");
       }
 
-      toast.success(data?.message || "Admin account created");
+      toast.success(data?.message || "Admin access granted");
       setCreateModalOpen(false);
       setForm(emptyForm);
       await load();
@@ -169,6 +184,47 @@ export function UsersDirectory() {
       toast.error(error instanceof Error ? error.message : "Unable to create admin");
     } finally {
       setIsCreating(false);
+    }
+  }
+
+  async function toggleUserStatus(user: UserRecord) {
+    if (statusPendingUserId === user.userId) {
+      return;
+    }
+
+    setStatusPendingUserId(user.userId);
+
+    try {
+      const res = await fetch("/api/users", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user.userId,
+          isActive: !user.isActive,
+        }),
+      });
+      const data = await readJson<{ error?: string; message?: string }>(res);
+
+      if (!res.ok) {
+        throw new Error(
+          data?.error ||
+            `Unable to ${user.isActive ? "deactivate" : "activate"} user account`
+        );
+      }
+
+      toast.success(
+        data?.message ||
+          `User account ${user.isActive ? "deactivated" : "activated"} successfully`
+      );
+      await load();
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : `Unable to ${user.isActive ? "deactivate" : "activate"} user account`
+      );
+    } finally {
+      setStatusPendingUserId(null);
     }
   }
 
@@ -249,7 +305,9 @@ export function UsersDirectory() {
                 <th className="py-3 pr-4">Username</th>
                 <th className="py-3 pr-4">Email</th>
                 <th className="py-3 pr-4">Contact</th>
+                <th className="py-3 pr-4">Status</th>
                 <th className="py-3 pr-4">Role</th>
+                <th className="py-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -260,7 +318,48 @@ export function UsersDirectory() {
                   <td className="py-3 pr-4">{user.email}</td>
                   <td className="py-3 pr-4">{user.contactNumber}</td>
                   <td className="py-3 pr-4">
-                    <Badge tone="neutral">User</Badge>
+                    <Badge tone={user.isActive ? "green" : "red"}>
+                      {user.isActive ? "Active" : "Inactive"}
+                    </Badge>
+                  </td>
+                  <td className="py-3 pr-4">
+                    <div className="flex flex-wrap gap-2">
+                      <Badge tone="neutral">User</Badge>
+                      {activeAdminUsernames.has(user.username.toLowerCase()) ? (
+                        <Badge tone="blue">Admin Access</Badge>
+                      ) : null}
+                    </div>
+                  </td>
+                  <td className="py-3">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button
+                        variant={user.isActive ? "danger" : "secondary"}
+                        className="px-3 py-1.5 text-sm"
+                        disabled={
+                          statusPendingUserId === user.userId ||
+                          (user.isActive && currentAdminUsername === user.username)
+                        }
+                        onClick={() => void toggleUserStatus(user)}
+                      >
+                        {statusPendingUserId === user.userId
+                          ? user.isActive
+                            ? "Deactivating..."
+                            : "Activating..."
+                          : user.isActive
+                            ? "Deactivate"
+                            : "Activate"}
+                      </Button>
+                      {user.isActive && currentAdminUsername === user.username ? (
+                        <span className="text-xs text-text-secondary">
+                          Current admin-linked user
+                        </span>
+                      ) : null}
+                      {!user.isActive && user.deactivatedAt ? (
+                        <span className="text-xs text-text-secondary">
+                          Since {formatDateTime(user.deactivatedAt)}
+                        </span>
+                      ) : null}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -352,55 +451,49 @@ export function UsersDirectory() {
             </Button>
             <Button
               className="w-full sm:w-auto"
-              disabled={isCreating}
+              disabled={isCreating || !form.userId}
               onClick={() => void createAdmin()}
             >
-              {isCreating ? "Saving..." : "Create Admin"}
+              {isCreating ? "Saving..." : "Grant Admin Access"}
             </Button>
           </div>
         }
       >
         <div className="space-y-4">
           <p className="text-sm text-text-secondary">
-            Admin accounts are managed separately from resident accounts.
+            Only existing active user accounts can be granted admin access.
           </p>
-          <Input
-            placeholder="Name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <Input
-            placeholder="Username"
-            value={form.username}
-            onChange={(e) => setForm({ ...form, username: e.target.value })}
-          />
-          <Input
-            placeholder="Email"
-            type="email"
-            value={form.email}
-            onChange={(e) => setForm({ ...form, email: e.target.value })}
-          />
-          <Input
-            placeholder="Password"
-            type="password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-          />
-          <Input
-            placeholder="Contact Number"
-            value={form.contactNumber}
-            onChange={(e) => setForm({ ...form, contactNumber: e.target.value })}
-          />
-          <Input
-            placeholder="Gender"
-            value={form.gender}
-            onChange={(e) => setForm({ ...form, gender: e.target.value })}
-          />
-          <Input
-            type="date"
-            value={form.birthdate}
-            onChange={(e) => setForm({ ...form, birthdate: e.target.value })}
-          />
+          <Select
+            value={form.userId}
+            onChange={(e) => setForm({ ...form, userId: e.target.value })}
+          >
+            <option value="">Select a user account</option>
+            {eligibleUsers.map((user) => (
+              <option key={user.userId} value={user.userId}>
+                {user.name} (@{user.username})
+              </option>
+            ))}
+          </Select>
+          {selectedUser ? (
+            <div className="rounded-xl border border-border p-4 text-sm text-text-secondary">
+              <p>
+                <strong>Name:</strong> {selectedUser.name}
+              </p>
+              <p>
+                <strong>Username:</strong> @{selectedUser.username}
+              </p>
+              <p>
+                <strong>Email:</strong> {selectedUser.email}
+              </p>
+              <p>
+                <strong>Contact:</strong> {selectedUser.contactNumber}
+              </p>
+            </div>
+          ) : eligibleUsers.length === 0 ? (
+            <p className="text-sm text-text-secondary">
+              No eligible active user accounts are currently available for admin access.
+            </p>
+          ) : null}
           <Select
             value={form.adminRole}
             onChange={(e) =>
@@ -413,12 +506,6 @@ export function UsersDirectory() {
             <option value="ADMIN">Regular Admin</option>
             <option value="CORE_ADMIN">Core Admin</option>
           </Select>
-          <Textarea
-            placeholder="Address"
-            rows={3}
-            value={form.address}
-            onChange={(e) => setForm({ ...form, address: e.target.value })}
-          />
         </div>
       </Modal>
 

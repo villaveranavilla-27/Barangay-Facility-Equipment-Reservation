@@ -60,6 +60,8 @@ model User {
   password      String        @db.VarChar(191) @map("Password")
   contactNumber String        @db.VarChar(50) @map("Contact number")
   email         String        @db.VarChar(191) @map("email")
+  isActive      Boolean       @default(true) @map("Is_Active")
+  deactivatedAt DateTime?     @map("DeactivatedAt")
   reservation   Reservation[]
 
   @@map("User")

@@ -2,7 +2,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
-import { isInactiveAdmin } from "@/lib/access";
+import { isInactiveAdmin, isInactiveUser } from "@/lib/access";
 
 const authPaths = ["/login", "/register", "/admin-login"];
 const protectedUserPaths = ["/user/"];
@@ -20,7 +20,8 @@ export async function middleware(request: NextRequest) {
   }
 
   const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
-  const effectiveToken = isInactiveAdmin(token) ? null : token;
+  const effectiveToken =
+    isInactiveAdmin(token) || isInactiveUser(token) ? null : token;
   const role = effectiveToken?.role;
 
   const isAuthPath = authPaths.some((path) => pathname.startsWith(path));
@@ -45,7 +46,18 @@ export async function middleware(request: NextRequest) {
     if (role !== "ADMIN") return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  return NextResponse.next();
+  const response = NextResponse.next();
+
+  if (isAuthPath || isUserPath || isAdminPath) {
+    response.headers.set(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, proxy-revalidate"
+    );
+    response.headers.set("Pragma", "no-cache");
+    response.headers.set("Expires", "0");
+  }
+
+  return response;
 }
 
 export const config = {

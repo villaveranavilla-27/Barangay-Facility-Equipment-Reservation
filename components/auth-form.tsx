@@ -3,8 +3,18 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
-import { Button, Input, Textarea } from "@/components/common";
+import { Button, Input, Select, Textarea } from "@/components/common";
 import toast from "react-hot-toast";
+
+const genderOptions = ["Male", "Female", "Other", "Prefer not to say"] as const;
+
+function sanitizeUsername(value: string) {
+  return value.replace(/[^A-Za-z0-9_]/g, "").slice(0, 191);
+}
+
+function sanitizeContactNumber(value: string) {
+  return value.replace(/\D/g, "").slice(0, 15);
+}
 
 export function AuthForm({
   mode,
@@ -153,6 +163,9 @@ export function AuthForm({
               className={inputClasses}
               value={form.name}
               onChange={(e) => updateField("name", e.target.value)}
+              minLength={2}
+              maxLength={191}
+              autoComplete="name"
               required
             />
           </div>
@@ -163,7 +176,12 @@ export function AuthForm({
               <Input
                 className={inputClasses}
                 value={form.username}
-                onChange={(e) => updateField("username", e.target.value)}
+                onChange={(e) =>
+                  updateField("username", sanitizeUsername(e.target.value))
+                }
+                minLength={3}
+                maxLength={191}
+                autoComplete="username"
                 required
               />
             </div>
@@ -175,6 +193,8 @@ export function AuthForm({
                 className={inputClasses}
                 value={form.email}
                 onChange={(e) => updateField("email", e.target.value)}
+                maxLength={191}
+                autoComplete="email"
                 required
               />
             </div>
@@ -188,6 +208,9 @@ export function AuthForm({
                 className={inputClasses}
                 value={form.password}
                 onChange={(e) => updateField("password", e.target.value)}
+                minLength={4}
+                maxLength={191}
+                autoComplete="new-password"
                 required
               />
             </div>
@@ -198,7 +221,14 @@ export function AuthForm({
                 type="tel"
                 className={inputClasses}
                 value={form.contactNumber}
-                onChange={(e) => updateField("contactNumber", e.target.value)}
+                onChange={(e) =>
+                  updateField("contactNumber", sanitizeContactNumber(e.target.value))
+                }
+                inputMode="numeric"
+                pattern="[0-9]{7,15}"
+                minLength={7}
+                maxLength={15}
+                autoComplete="tel"
                 required
               />
             </div>
@@ -207,12 +237,18 @@ export function AuthForm({
           <div className={`grid ${gridGap} md:grid-cols-2`}>
             <div>
               <label className={labelClasses}>Gender</label>
-              <Input
+              <Select
                 className={inputClasses}
                 value={form.gender}
                 onChange={(e) => updateField("gender", e.target.value)}
                 required
-              />
+              >
+                {genderOptions.map((option) => (
+                  <option key={option} value={option}>
+                    {option}
+                  </option>
+                ))}
+              </Select>
             </div>
 
             <div>
@@ -222,6 +258,7 @@ export function AuthForm({
                 className={inputClasses}
                 value={form.birthdate}
                 onChange={(e) => updateField("birthdate", e.target.value)}
+                max={new Date().toISOString().slice(0, 10)}
               />
             </div>
           </div>
@@ -233,6 +270,7 @@ export function AuthForm({
               className={inputClasses}
               value={form.address}
               onChange={(e) => updateField("address", e.target.value)}
+              maxLength={191}
             />
           </div>
 
@@ -259,6 +297,7 @@ export function AuthForm({
               className={inputClasses}
               value={form.identifier}
               onChange={(e) => updateField("identifier", e.target.value)}
+              autoComplete="username"
               required
             />
           </div>
@@ -270,6 +309,9 @@ export function AuthForm({
               className={inputClasses}
               value={form.password}
               onChange={(e) => updateField("password", e.target.value)}
+              autoComplete={
+                mode === "admin-login" ? "current-password" : "current-password"
+              }
               required
             />
           </div>

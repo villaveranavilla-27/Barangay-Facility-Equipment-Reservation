@@ -42,29 +42,57 @@ export const authOptions: NextAuthOptions = {
                 { username: normalizedIdentifier },
               ],
             },
+            select: {
+              adminId: true,
+              email: true,
+              name: true,
+              role: true,
+              isActive: true,
+              username: true,
+              password: true,
+            },
           });
 
           if (!admin) {
             throw new Error("Invalid email/username or password");
           }
 
-          const isValid = await checkPassword(password, admin.password);
+          const linkedUser = await prisma.user.findUnique({
+            where: { username: admin.username },
+            select: {
+              email: true,
+              name: true,
+              password: true,
+              isActive: true,
+            },
+          });
+
+          if (linkedUser && !linkedUser.isActive) {
+            throw new Error("This user account is inactive");
+          }
+
+          const isValid = await checkPassword(
+            password,
+            linkedUser?.password ?? admin.password
+          );
           if (!isValid) {
             throw new Error("Invalid email/username or password");
           }
 
           return {
             id: String(admin.adminId),
-            email: admin.email,
-            name: admin.name,
+            email: linkedUser?.email ?? admin.email,
+            name: linkedUser?.name ?? admin.name,
             role: "ADMIN",
             adminRole: admin.role,
             adminActive: admin.isActive,
+            userActive: null,
           };
         }
 
         const user = await prisma.user.findFirst({
           where: {
+            isActive: true,
             OR: [
               { email: normalizedIdentifier },
               { username: normalizedIdentifier },
@@ -88,6 +116,7 @@ export const authOptions: NextAuthOptions = {
           role: "USER",
           adminRole: null,
           adminActive: null,
+          userActive: user.isActive,
         };
       },
     }),
@@ -126,6 +155,7 @@ export const authOptions: NextAuthOptions = {
         const authUser = user as typeof user & {
           adminRole?: "CORE_ADMIN" | "ADMIN" | null;
           adminActive?: boolean | null;
+          userActive?: boolean | null;
         };
 
         token.id = user.id;
@@ -134,6 +164,7 @@ export const authOptions: NextAuthOptions = {
         token.name = user.name ?? null;
         token.adminRole = authUser.adminRole ?? null;
         token.adminActive = authUser.adminActive ?? null;
+        token.userActive = authUser.userActive ?? null;
       }
 
       if (token.role === "ADMIN" && token.id) {
@@ -145,22 +176,62 @@ export const authOptions: NextAuthOptions = {
             name: true,
             role: true,
             isActive: true,
+            username: true,
           },
         });
 
         if (!admin || !admin.isActive) {
           token.adminRole = null;
           token.adminActive = false;
+          token.userActive = null;
           return token;
         }
 
-        token.email = admin.email;
-        token.name = admin.name;
+        const linkedUser = await prisma.user.findUnique({
+          where: { username: admin.username },
+          select: {
+            email: true,
+            name: true,
+            isActive: true,
+          },
+        });
+
+        if (linkedUser && !linkedUser.isActive) {
+          token.adminRole = null;
+          token.adminActive = false;
+          token.userActive = null;
+          return token;
+        }
+
+        token.email = linkedUser?.email ?? admin.email;
+        token.name = linkedUser?.name ?? admin.name;
         token.adminRole = admin.role;
         token.adminActive = true;
+        token.userActive = null;
+      } else if (token.role === "USER" && token.id) {
+        const currentUser = await prisma.user.findUnique({
+          where: { userId: Number(token.id) },
+          select: {
+            email: true,
+            name: true,
+            isActive: true,
+          },
+        });
+
+        if (!currentUser || !currentUser.isActive) {
+          token.userActive = false;
+          return token;
+        }
+
+        token.email = currentUser.email;
+        token.name = currentUser.name;
+        token.userActive = true;
+        token.adminRole = null;
+        token.adminActive = null;
       } else {
         token.adminRole = null;
         token.adminActive = null;
+        token.userActive = null;
       }
 
       return token;
@@ -174,6 +245,8 @@ export const authOptions: NextAuthOptions = {
           (token.adminRole as "CORE_ADMIN" | "ADMIN" | null) ?? null;
         session.user.adminActive =
           typeof token.adminActive === "boolean" ? token.adminActive : null;
+        session.user.userActive =
+          typeof token.userActive === "boolean" ? token.userActive : null;
         session.user.email =
           (token.email as string) ?? session.user.email ?? "";
         session.user.name =

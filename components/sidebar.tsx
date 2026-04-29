@@ -108,9 +108,8 @@ export function Sidebar({ role }: { role: Role }) {
             <Button
               variant="danger"
               onClick={async () => {
-                await signOut({
-                  callbackUrl: role === "admin" ? "/admin-login" : "/login",
-                });
+                await signOut({ redirect: false });
+                window.location.replace(role === "admin" ? "/admin-login" : "/login");
               }}
             >
               Confirm

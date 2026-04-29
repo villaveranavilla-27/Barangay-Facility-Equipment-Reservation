@@ -1,4 +1,3 @@
-import bcrypt from "bcryptjs";
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -6,7 +5,12 @@ import { ADMIN_ROLE } from "@/lib/admin-roles";
 import { isActiveAdmin, isCoreAdmin, isInactiveAdmin } from "@/lib/access";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { adminCreateSchema, adminRemovalSchema, userUpdateSchema } from "@/lib/schemas";
+import {
+  adminCreateSchema,
+  adminRemovalSchema,
+  userAccountStatusSchema,
+  userUpdateSchema,
+} from "@/lib/schemas";
 import { md5 } from "@/lib/utils";
 
 const adminSelect = {
@@ -140,6 +144,8 @@ export async function GET(request: Request) {
         username: true,
         contactNumber: true,
         email: true,
+        isActive: true,
+        deactivatedAt: true,
       },
     });
     return NextResponse.json(users);
@@ -149,7 +155,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!session?.user?.id) {
+  if (!session?.user?.id || session.user.role !== "USER" || session.user.userActive === false) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -164,6 +170,8 @@ export async function GET(request: Request) {
       username: true,
       contactNumber: true,
       email: true,
+      isActive: true,
+      deactivatedAt: true,
     },
   });
 
@@ -199,9 +207,6 @@ export async function POST(request: Request) {
 
   const data = parsed.data;
   const actorAdminId = Number(session.user.id);
-  const normalizedUsername = data.username.trim();
-  const normalizedEmail = data.email.trim();
-  const passwordHash = await bcrypt.hash(data.password, 10);
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -218,23 +223,35 @@ export async function POST(request: Request) {
         throw new AdminManagementError(403, "Only core admins can manage administrator access.");
       }
 
-      const conflictingUser = await tx.user.findFirst({
-        where: {
-          OR: [{ email: normalizedEmail }, { username: normalizedUsername }],
+      const existingUser = await tx.user.findUnique({
+        where: { userId: data.userId },
+        select: {
+          userId: true,
+          name: true,
+          birthdate: true,
+          gender: true,
+          address: true,
+          username: true,
+          password: true,
+          contactNumber: true,
+          email: true,
+          isActive: true,
         },
-        select: { userId: true },
       });
 
-      if (conflictingUser) {
+      if (!existingUser || !existingUser.isActive) {
         throw new AdminManagementError(
-          409,
-          "This email or username is already used by a resident account."
+          404,
+          "Only active user accounts in this system can be assigned as admins."
         );
       }
 
       const matchingAdmins = await tx.admin.findMany({
         where: {
-          OR: [{ email: normalizedEmail }, { username: normalizedUsername }],
+          OR: [
+            { email: existingUser.email },
+            { username: existingUser.username },
+          ],
         },
         select: adminSelect,
       });
@@ -251,7 +268,7 @@ export async function POST(request: Request) {
       if (existingAdmin?.isActive) {
         throw new AdminManagementError(
           409,
-          "An active admin with this email or username already exists."
+          "This user account already has active admin access."
         );
       }
 
@@ -259,14 +276,14 @@ export async function POST(request: Request) {
         const reactivatedAdmin = await tx.admin.update({
           where: { adminId: existingAdmin.adminId },
           data: {
-            name: data.name.trim(),
-            username: normalizedUsername,
-            email: normalizedEmail,
-            password: passwordHash,
-            contactNumber: data.contactNumber.trim(),
-            gender: data.gender.trim(),
-            birthdate: data.birthdate ? new Date(data.birthdate) : null,
-            address: data.address?.trim() || null,
+            name: existingUser.name,
+            username: existingUser.username,
+            email: existingUser.email,
+            password: existingUser.password,
+            contactNumber: existingUser.contactNumber,
+            gender: existingUser.gender,
+            birthdate: existingUser.birthdate,
+            address: existingUser.address,
             role: data.adminRole,
             isActive: true,
             deactivatedAt: null,
@@ -282,14 +299,14 @@ export async function POST(request: Request) {
 
       const createdAdmin = await tx.admin.create({
         data: {
-          name: data.name.trim(),
-          username: normalizedUsername,
-          email: normalizedEmail,
-          password: passwordHash,
-          contactNumber: data.contactNumber.trim(),
-          gender: data.gender.trim(),
-          birthdate: data.birthdate ? new Date(data.birthdate) : null,
-          address: data.address?.trim() || null,
+          name: existingUser.name,
+          username: existingUser.username,
+          email: existingUser.email,
+          password: existingUser.password,
+          contactNumber: existingUser.contactNumber,
+          gender: existingUser.gender,
+          birthdate: existingUser.birthdate,
+          address: existingUser.address,
           role: data.adminRole,
         },
         select: adminSelect,
@@ -316,7 +333,7 @@ export async function POST(request: Request) {
       reactivated: result.reactivated,
       message: result.reactivated
         ? "Admin access restored successfully."
-        : "Admin account created successfully.",
+        : "Admin access granted successfully.",
       admin: result.admin,
     });
   } catch (error) {
@@ -337,42 +354,180 @@ export async function POST(request: Request) {
 
 export async function PATCH(request: Request) {
   const session = await getServerSession(authOptions);
+  const body = await request.json();
 
-  if (!session?.user?.id || session.user.role !== "USER") {
+  if (isActiveAdmin(session?.user)) {
+    const parsed = userAccountStatusSchema.safeParse(body);
+
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: "Invalid data", details: parsed.error.flatten().fieldErrors },
+        { status: 400 }
+      );
+    }
+
+    const actorAdminId = Number(session?.user?.id);
+    const now = new Date();
+
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        const actor = await tx.admin.findUnique({
+          where: { adminId: actorAdminId },
+          select: { adminId: true, username: true, role: true, isActive: true },
+        });
+
+        if (!actor?.isActive) {
+          throw new AdminManagementError(403, "Your admin access is no longer active.");
+        }
+
+        const targetUser = await tx.user.findUnique({
+          where: { userId: parsed.data.userId },
+          select: {
+            userId: true,
+            name: true,
+            username: true,
+            email: true,
+            contactNumber: true,
+            isActive: true,
+            deactivatedAt: true,
+          },
+        });
+
+        if (!targetUser) {
+          throw new AdminManagementError(404, "User account not found.");
+        }
+
+        if (!parsed.data.isActive && targetUser.username === actor.username) {
+          throw new AdminManagementError(
+            400,
+            "You cannot deactivate the user account linked to your current admin session."
+          );
+        }
+
+        if (targetUser.isActive === parsed.data.isActive) {
+          return {
+            user: targetUser,
+            changed: false,
+            message: parsed.data.isActive
+              ? "User account is already active."
+              : "User account is already inactive.",
+          };
+        }
+
+        const updatedUser = await tx.user.update({
+          where: { userId: parsed.data.userId },
+          data: {
+            isActive: parsed.data.isActive,
+            deactivatedAt: parsed.data.isActive ? null : now,
+          },
+          select: {
+            userId: true,
+            name: true,
+            username: true,
+            email: true,
+            contactNumber: true,
+            isActive: true,
+            deactivatedAt: true,
+          },
+        });
+
+        return {
+          user: updatedUser,
+          changed: true,
+          message: parsed.data.isActive
+            ? "User account activated successfully."
+            : "User account deactivated successfully.",
+        };
+      });
+
+      return NextResponse.json({
+        ok: true,
+        changed: result.changed,
+        message: result.message,
+        user: result.user,
+      });
+    } catch (error) {
+      if (error instanceof AdminManagementError) {
+        return NextResponse.json({ error: error.message }, { status: error.status });
+      }
+
+      throw error;
+    }
+  }
+
+  if (!session?.user?.id || session.user.role !== "USER" || session.user.userActive === false) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const parsed = userUpdateSchema.safeParse(await request.json());
+  const parsed = userUpdateSchema.safeParse(body);
 
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid data" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid data", details: parsed.error.flatten().fieldErrors },
+      { status: 400 }
+    );
   }
 
   const data = parsed.data;
-  const updated = await prisma.user.update({
-    where: { userId: Number(session.user.id) },
-    data: {
-      name: data.name,
-      email: data.email,
-      contactNumber: data.contactNumber,
-      gender: data.gender,
-      birthdate: data.birthdate ? new Date(data.birthdate) : null,
-      address: data.address || null,
-      ...(data.password ? { password: md5(data.password) } : {}),
-    },
-    select: {
-      userId: true,
-      name: true,
-      birthdate: true,
-      gender: true,
-      address: true,
-      username: true,
-      contactNumber: true,
-      email: true,
-    },
-  });
+  const passwordHash = data.password ? md5(data.password) : null;
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      const existingUser = await tx.user.findUnique({
+        where: { userId: Number(session.user.id) },
+        select: { userId: true, username: true },
+      });
 
-  return NextResponse.json(updated);
+      if (!existingUser) {
+        throw new AdminManagementError(404, "User account not found.");
+      }
+
+      const updatedUser = await tx.user.update({
+        where: { userId: existingUser.userId },
+        data: {
+          name: data.name,
+          email: data.email,
+          contactNumber: data.contactNumber,
+          gender: data.gender,
+          birthdate: data.birthdate ? new Date(data.birthdate) : null,
+          address: data.address || null,
+          ...(passwordHash ? { password: passwordHash } : {}),
+        },
+        select: {
+          userId: true,
+          name: true,
+          birthdate: true,
+          gender: true,
+          address: true,
+          username: true,
+          contactNumber: true,
+          email: true,
+        },
+      });
+
+      await tx.admin.updateMany({
+        where: { username: existingUser.username },
+        data: {
+          name: data.name,
+          email: data.email,
+          contactNumber: data.contactNumber,
+          gender: data.gender,
+          birthdate: data.birthdate ? new Date(data.birthdate) : null,
+          address: data.address || null,
+          ...(passwordHash ? { password: passwordHash } : {}),
+        },
+      });
+
+      return updatedUser;
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    if (error instanceof AdminManagementError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
+
+    throw error;
+  }
 }
 
 export async function DELETE(request: Request) {

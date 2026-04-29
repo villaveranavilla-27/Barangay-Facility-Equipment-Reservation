@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { type KeyboardEvent, useEffect, useMemo, useState } from "react";
 import { HugeiconsIcon } from "@hugeicons/react";
 import {
   Add01Icon,
@@ -94,6 +94,12 @@ function getEquipmentAvailabilityMeta(quantity?: number | null) {
     icon: PackageIcon,
     iconClassName: "text-slate-500",
   };
+}
+
+function preventInvalidNumberInput(event: KeyboardEvent<HTMLInputElement>) {
+  if (["e", "E", "+", "-"].includes(event.key)) {
+    event.preventDefault();
+  }
 }
 
 export function AdminCatalogManager({
@@ -437,6 +443,7 @@ export function AdminCatalogManager({
             </label>
             <Input
               value={form.itemName}
+              maxLength={191}
               onChange={(e) =>
                 setForm((current) => ({ ...current, itemName: e.target.value }))
               }
@@ -449,6 +456,7 @@ export function AdminCatalogManager({
             </label>
             <Textarea
               rows={3}
+              maxLength={191}
               value={form.description}
               onChange={(e) =>
                 setForm((current) => ({ ...current, description: e.target.value }))
@@ -480,13 +488,18 @@ export function AdminCatalogManager({
                 <Input
                   type="number"
                   min="0"
+                  step="1"
+                  inputMode="numeric"
                   value={form.pricePerDay}
-                  onChange={(e) =>
-                    setForm((current) => ({
-                      ...current,
-                      pricePerDay: e.target.value,
-                    }))
-                  }
+                  onKeyDown={preventInvalidNumberInput}
+                  onChange={(e) => {
+                    if (/^\d*$/.test(e.target.value)) {
+                      setForm((current) => ({
+                        ...current,
+                        pricePerDay: e.target.value,
+                      }));
+                    }
+                  }}
                 />
               </div>
             </>
@@ -500,10 +513,14 @@ export function AdminCatalogManager({
                   type="number"
                   min="0"
                   step="0.01"
+                  inputMode="decimal"
                   value={form.price}
-                  onChange={(e) =>
-                    setForm((current) => ({ ...current, price: e.target.value }))
-                  }
+                  onKeyDown={preventInvalidNumberInput}
+                  onChange={(e) => {
+                    if (/^\d*(\.\d{0,2})?$/.test(e.target.value)) {
+                      setForm((current) => ({ ...current, price: e.target.value }));
+                    }
+                  }}
                 />
               </div>
 
@@ -514,10 +531,15 @@ export function AdminCatalogManager({
                 <Input
                   type="number"
                   min="0"
+                  step="1"
+                  inputMode="numeric"
                   value={form.quantity}
-                  onChange={(e) =>
-                    setForm((current) => ({ ...current, quantity: e.target.value }))
-                  }
+                  onKeyDown={preventInvalidNumberInput}
+                  onChange={(e) => {
+                    if (/^\d*$/.test(e.target.value)) {
+                      setForm((current) => ({ ...current, quantity: e.target.value }));
+                    }
+                  }}
                 />
               </div>
             </>
