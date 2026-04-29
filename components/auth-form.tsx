@@ -42,10 +42,21 @@ export function AuthForm({
     try {
       // REGISTER
       if (mode === "register") {
+        const registerPayload = {
+          name: form.name.trim(),
+          username: form.username.trim(),
+          email: form.email.trim(),
+          password: form.password,
+          contactNumber: form.contactNumber.trim(),
+          gender: form.gender.trim(),
+          birthdate: form.birthdate || null,
+          address: form.address.trim() || null,
+        };
+
         const res = await fetch("/api/register", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(form),
+          body: JSON.stringify(registerPayload),
         });
 
         const data = await res.json();
@@ -135,22 +146,105 @@ export function AuthForm({
     <form onSubmit={submit} className={formSpacing}>
       {mode === "register" ? (
         <>
-          {/* REGISTER (unchanged) */}
+          {/* REGISTER */}
           <div>
             <label className={labelClasses}>Full Name</label>
             <Input
               className={inputClasses}
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => updateField("name", e.target.value)}
               required
             />
           </div>
 
-          {/* rest unchanged */}
+          <div className={`grid ${gridGap} md:grid-cols-2`}>
+            <div>
+              <label className={labelClasses}>Username</label>
+              <Input
+                className={inputClasses}
+                value={form.username}
+                onChange={(e) => updateField("username", e.target.value)}
+                required
+              />
+            </div>
+
+            <div>
+              <label className={labelClasses}>Email</label>
+              <Input
+                type="email"
+                className={inputClasses}
+                value={form.email}
+                onChange={(e) => updateField("email", e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div className={`grid ${gridGap} md:grid-cols-2`}>
+            <div>
+              <label className={labelClasses}>Password</label>
+              <Input
+                type="password"
+                className={inputClasses}
+                value={form.password}
+                onChange={(e) => updateField("password", e.target.value)}
+                required
+              />
+            </div>
+
+            <div>
+              <label className={labelClasses}>Contact Number</label>
+              <Input
+                type="tel"
+                className={inputClasses}
+                value={form.contactNumber}
+                onChange={(e) => updateField("contactNumber", e.target.value)}
+                required
+              />
+            </div>
+          </div>
+
+          <div className={`grid ${gridGap} md:grid-cols-2`}>
+            <div>
+              <label className={labelClasses}>Gender</label>
+              <Input
+                className={inputClasses}
+                value={form.gender}
+                onChange={(e) => updateField("gender", e.target.value)}
+                required
+              />
+            </div>
+
+            <div>
+              <label className={labelClasses}>Birthdate</label>
+              <Input
+                type="date"
+                className={inputClasses}
+                value={form.birthdate}
+                onChange={(e) => updateField("birthdate", e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className={labelClasses}>Address</label>
+            <Textarea
+              rows={3}
+              className={inputClasses}
+              value={form.address}
+              onChange={(e) => updateField("address", e.target.value)}
+            />
+          </div>
 
           <Button type="submit" className={buttonClasses} disabled={loading}>
             {loading ? "Please wait..." : "Create Account"}
           </Button>
+
+          {errorMessage && (
+            <p className="text-sm font-medium text-red-600">
+              {errorMessage}
+            </p>
+          )}
         </>
       ) : (
         <>
