@@ -303,11 +303,8 @@ export function UsersDirectory() {
             onChange={(e) => setQuery(e.target.value)}
           />
 
-          <p className="text-sm text-text-secondary">
-            {canManageAdmins
-              ? "Use the row actions to grant admin access."
-              : "Only core admins can add or remove administrator access."}
-          </p>
+          
+
         </div>
       </Card>
 

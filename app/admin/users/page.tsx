@@ -8,7 +8,7 @@ export default function AdminUsersPage() {
       <div>
         <h1 className="text-3xl font-semibold">Users Directory</h1>
         <p className="mt-1 text-text-secondary">
-          Review resident accounts, activate or deactivate users, and manage administrator access.
+          Review client accounts, activate or deactivate users, and manage administrator access.
         </p>
       </div>
       <UsersDirectory />
