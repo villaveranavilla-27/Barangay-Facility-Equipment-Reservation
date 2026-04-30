@@ -12,7 +12,7 @@ import {
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { reservationSchema } from "@/lib/schemas";
-import { sendMail } from "@/lib/mail";
+import { sendEmail } from "@/lib/mail";
 import { buildAdminReservationRequestEmail } from "@/lib/reservation-emails";
 import { serializeReservation } from "@/lib/reservations";
 
@@ -200,7 +200,13 @@ export async function POST(request: Request) {
       if (uniqueAdminEmails.length > 0) {
         const message = buildAdminReservationRequestEmail(reservation);
         await Promise.all(
-          uniqueAdminEmails.map((email) => sendMail(message.subject, message.html, email))
+          uniqueAdminEmails.map((email) =>
+            sendEmail({
+              to: email,
+              subject: message.subject,
+              html: message.html,
+            })
+          )
         );
       }
     }

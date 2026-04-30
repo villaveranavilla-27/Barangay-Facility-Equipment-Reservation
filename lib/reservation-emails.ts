@@ -28,6 +28,45 @@ type ReservationEmailContext = {
   } | null;
 };
 
+type EmailVariant = "admin" | "approved" | "denied";
+
+const EMAIL_THEME: Record<
+  EmailVariant,
+  {
+    headerBg: string;
+    accent: string;
+    detailsBg: string;
+    highlightBg: string;
+    highlightText: string;
+    highlightTitle: string;
+  }
+> = {
+  admin: {
+    headerBg: "#1f3a5f",
+    accent: "#1f3a5f",
+    detailsBg: "#f4f7fb",
+    highlightBg: "#edf4ff",
+    highlightText: "#17304e",
+    highlightTitle: "Admin notification",
+  },
+  approved: {
+    headerBg: "#165719",
+    accent: "#165719",
+    detailsBg: "#f8fbf8",
+    highlightBg: "#ecf9ee",
+    highlightText: "#114416",
+    highlightTitle: "Confirmation",
+  },
+  denied: {
+    headerBg: "#8f1d1d",
+    accent: "#8f1d1d",
+    detailsBg: "#fff7f7",
+    highlightBg: "#feecec",
+    highlightText: "#7a1919",
+    highlightTitle: "Reservation alert",
+  },
+};
+
 function escapeHtml(value: string) {
   return value
     .replace(/&/g, "&amp;")
@@ -86,22 +125,28 @@ function buildReservationDetails(reservation: ReservationEmailContext) {
 }
 
 function emailLayout({
+  variant,
   preheader,
   title,
   intro,
   reservation,
   highlight,
+  highlightTitle,
   actionLabel,
   actionUrl,
 }: {
+  variant: EmailVariant;
   preheader: string;
   title: string;
   intro: string;
   reservation: ReservationEmailContext;
   highlight?: string | null;
+  highlightTitle?: string;
   actionLabel?: string;
   actionUrl?: string | null;
 }) {
+  const theme = EMAIL_THEME[variant];
+
   return `<!DOCTYPE html>
   <html lang="en">
     <body style="margin:0;background:#f4f7f4;padding:24px;font-family:Arial,sans-serif;color:#16222b;">
@@ -110,7 +155,7 @@ function emailLayout({
       )}</div>
       <div style="margin:0 auto;max-width:720px;">
         <div style="border-radius:20px;background:#ffffff;overflow:hidden;box-shadow:0 14px 36px rgba(15,23,42,0.08);">
-          <div style="background:#165719;padding:28px 32px;color:#ffffff;">
+          <div style="background:${theme.headerBg};padding:28px 32px;color:#ffffff;">
             <div style="font-size:12px;letter-spacing:0.08em;text-transform:uppercase;opacity:0.9;">
               Barangay Facility and Equipment Management System
             </div>
@@ -124,14 +169,16 @@ function emailLayout({
             )}</p>
             ${
               highlight
-                ? `<div style="margin-bottom:24px;border-radius:16px;background:#fff6e8;padding:18px 20px;color:#7c4a03;font-size:15px;line-height:1.6;">
-                    <strong style="display:block;margin-bottom:6px;color:#5f3904;">Important note</strong>
+                ? `<div style="margin-bottom:24px;border-left:4px solid ${theme.accent};border-radius:16px;background:${theme.highlightBg};padding:18px 20px;color:${theme.highlightText};font-size:15px;line-height:1.6;">
+                    <strong style="display:block;margin-bottom:6px;color:${theme.highlightText};">${escapeHtml(
+                      highlightTitle ?? theme.highlightTitle
+                    )}</strong>
                     ${escapeHtml(highlight)}
                   </div>`
                 : ""
             }
-            <div style="border-radius:18px;background:#f8fbf8;padding:24px;">
-              <h2 style="margin:0 0 18px;font-size:18px;color:#165719;">Reservation Details</h2>
+            <div style="border-radius:18px;background:${theme.detailsBg};padding:24px;">
+              <h2 style="margin:0 0 18px;font-size:18px;color:${theme.accent};">Reservation Details</h2>
               ${buildReservationDetails(reservation)}
             </div>
             ${
@@ -139,7 +186,7 @@ function emailLayout({
                 ? `<div style="margin-top:28px;">
                     <a href="${escapeHtml(
                       actionUrl
-                    )}" style="display:inline-block;border-radius:999px;background:#165719;padding:12px 20px;color:#ffffff;text-decoration:none;font-weight:700;">
+                    )}" style="display:inline-block;border-radius:999px;background:${theme.accent};padding:12px 20px;color:#ffffff;text-decoration:none;font-weight:700;">
                       ${escapeHtml(actionLabel)}
                     </a>
                   </div>`
@@ -157,12 +204,14 @@ function emailLayout({
 
 export function buildAdminReservationRequestEmail(reservation: ReservationEmailContext) {
   return {
-    subject: `New reservation request #${reservation.reservationId}`,
+    subject: "New Reservation Request",
     html: emailLayout({
+      variant: "admin",
       preheader: "A new reservation request is waiting for admin review.",
       title: "New Reservation Request",
       intro: `${reservation.user.name} submitted a reservation request that is awaiting review. Please check the reservation details below and update the request status in the admin portal.`,
       reservation: { ...reservation, status: reservation.status ?? "PENDING" },
+      highlight: "A new reservation request is waiting for review.",
       actionLabel: "Review Reservation",
       actionUrl: getAppUrl("/admin/reservations"),
     }),
@@ -173,12 +222,14 @@ export function buildUserReservationApprovedEmail(
   reservation: ReservationEmailContext
 ) {
   return {
-    subject: `Reservation approved #${reservation.reservationId}`,
+    subject: "Reservation Approved",
     html: emailLayout({
+      variant: "approved",
       preheader: "Your reservation request has been approved.",
       title: "Reservation Approved",
-      intro: "Your reservation request has been approved. Please keep this email for your reference.",
+      intro: "Your reservation request has been approved and is now confirmed. Please keep this email for your reference.",
       reservation: { ...reservation, status: reservation.status ?? "APPROVED" },
+      highlight: "Your reservation is confirmed in the system.",
       actionLabel: "View My Reservations",
       actionUrl: getAppUrl("/user/reservations"),
     }),
@@ -189,13 +240,17 @@ export function buildUserReservationDeniedEmail(
   reservation: ReservationEmailContext
 ) {
   return {
-    subject: `Reservation denied #${reservation.reservationId}`,
+    subject: "Reservation Denied",
     html: emailLayout({
+      variant: "denied",
       preheader: "Your reservation request has been denied.",
       title: "Reservation Denied",
       intro: "Your reservation request was reviewed and could not be approved at this time.",
       reservation: { ...reservation, status: reservation.status ?? "DENIED" },
-      highlight: reservation.adminNotes ?? "Please contact the barangay administration office for more information.",
+      highlight:
+        reservation.adminNotes ??
+        "No specific reason was provided. Please contact the barangay administration office for more information.",
+      highlightTitle: reservation.adminNotes ? "Reason provided" : "Next step",
       actionLabel: "Review Reservation Status",
       actionUrl: getAppUrl("/user/reservations"),
     }),

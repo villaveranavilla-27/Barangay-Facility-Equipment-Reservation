@@ -13,7 +13,7 @@ import {
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { reservationAdminActionSchema } from "@/lib/schemas";
-import { sendMail } from "@/lib/mail";
+import { sendEmail } from "@/lib/mail";
 import {
   buildUserReservationApprovedEmail,
   buildUserReservationDeniedEmail,
@@ -303,7 +303,11 @@ export async function PATCH(request: Request, { params }: { params: { id: string
           ? buildUserReservationApprovedEmail(reservation)
           : buildUserReservationDeniedEmail(reservation);
 
-      await sendMail(message.subject, message.html, reservation.user.email);
+      await sendEmail({
+        to: reservation.user.email,
+        subject: message.subject,
+        html: message.html,
+      });
     }
 
     return NextResponse.json(serializeReservation(reservation));
