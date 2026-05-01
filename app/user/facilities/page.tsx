@@ -52,7 +52,7 @@ export default function UserFacilitiesPage() {
   const activeItems = activeTab === "FACILITY" ? facilities : equipment;
 
   return (
-    <main className="min-h-screen bg-[#f3f4f6] px-6 py-6 md:px-10">
+    <main className="min-h-screen bg-[#f3f4f6] px-4 py-6 sm:px-6 md:px-10">
       <div className="mx-auto max-w-6xl space-y-6">
         {/* SEARCH BAR */}
         <CatalogSearchField
@@ -61,7 +61,7 @@ export default function UserFacilitiesPage() {
         />
 
         {/* TABS */}
-        <div className="inline-flex rounded-[22px] border border-gray-200 bg-white p-1 shadow-sm">
+        <div className="flex w-full flex-col rounded-[22px] border border-gray-200 bg-white p-1 shadow-sm sm:inline-flex sm:w-auto sm:flex-row">
           <CatalogTabButton
             label="Facilities"
             active={activeTab === "FACILITY"}
@@ -77,7 +77,7 @@ export default function UserFacilitiesPage() {
 
         {/* ACTIVE TAB CONTENT */}
         <div className="rounded-[24px] border border-gray-200 bg-white shadow-sm">
-          <div className="border-b border-gray-200 px-6 py-5">
+          <div className="border-b border-gray-200 px-4 py-5 sm:px-6">
             <h2 className="text-2xl font-semibold text-slate-900">
               {activeTab === "FACILITY"
                 ? "Facilities Directory"
@@ -85,7 +85,7 @@ export default function UserFacilitiesPage() {
             </h2>
           </div>
 
-          <div className="divide-y divide-gray-200 px-6">
+          <div className="divide-y divide-gray-200 px-4 sm:px-6">
             {activeItems.length === 0 ? (
               <div className="py-10 text-center text-sm text-gray-500">
                 No {activeTab === "FACILITY" ? "facilities" : "equipment"} found.
@@ -134,7 +134,7 @@ export default function UserFacilitiesPage() {
 
                       <Link
                         href={reserveHref}
-                        className="inline-flex h-11 items-center justify-center rounded-full bg-green-700 px-5 text-sm font-semibold text-white transition hover:bg-green-800"
+                        className="inline-flex h-11 w-full items-center justify-center rounded-full bg-green-700 px-5 text-sm font-semibold text-white transition hover:bg-green-800 sm:w-auto"
                       >
                         Reserve Now
                       </Link>

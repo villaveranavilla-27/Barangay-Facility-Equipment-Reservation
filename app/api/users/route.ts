@@ -44,11 +44,13 @@ class AdminManagementError extends Error {
 
 function getAdminRemovalBlockedReason({
   actorAdminId,
+  actorAdminRole,
   targetAdmin,
   activeAdminCount,
   activeCoreAdminCount,
 }: {
   actorAdminId: number;
+  actorAdminRole: AdminDirectoryRecord["role"];
   targetAdmin: Pick<AdminDirectoryRecord, "adminId" | "role" | "isActive">;
   activeAdminCount: number;
   activeCoreAdminCount: number;
@@ -59,6 +61,10 @@ function getAdminRemovalBlockedReason({
 
   if (targetAdmin.adminId === actorAdminId) {
     return "You cannot remove your own admin access.";
+  }
+
+  if (targetAdmin.role === ADMIN_ROLE.CORE_ADMIN && actorAdminRole !== ADMIN_ROLE.CORE_ADMIN) {
+    return "Only core admins can remove core admin access.";
   }
 
   if (activeAdminCount <= 1) {
@@ -75,6 +81,7 @@ function getAdminRemovalBlockedReason({
 function serializeAdminDirectoryRecord(
   admin: AdminDirectoryRecord,
   actorAdminId: number,
+  actorAdminRole: AdminDirectoryRecord["role"],
   counts: {
     activeAdminCount: number;
     activeCoreAdminCount: number;
@@ -82,6 +89,7 @@ function serializeAdminDirectoryRecord(
 ) {
   const removalBlockedReason = getAdminRemovalBlockedReason({
     actorAdminId,
+    actorAdminRole,
     targetAdmin: admin,
     activeAdminCount: counts.activeAdminCount,
     activeCoreAdminCount: counts.activeCoreAdminCount,
@@ -123,13 +131,18 @@ export async function GET(request: Request) {
     return NextResponse.json({
       currentAdminId,
       currentAdminRole: session?.user?.adminRole ?? null,
-      canManageAdmins: isCoreAdmin(session?.user),
+      canManageAdmins: isActiveAdmin(session?.user),
       canPromoteAdmins: isActiveAdmin(session?.user),
       admins: admins.map((admin) =>
-        serializeAdminDirectoryRecord(admin, currentAdminId, {
+        serializeAdminDirectoryRecord(
+          admin,
+          currentAdminId,
+          (session?.user?.adminRole as AdminDirectoryRecord["role"]) ?? ADMIN_ROLE.ADMIN,
+          {
           activeAdminCount,
           activeCoreAdminCount,
-        })
+          }
+        )
       ),
     });
   }
@@ -580,13 +593,6 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  if (!isCoreAdmin(session.user)) {
-    return NextResponse.json(
-      { error: "Only core admins can manage administrator access." },
-      { status: 403 }
-    );
-  }
-
   const parsed = adminRemovalSchema.safeParse(await request.json());
 
   if (!parsed.success) {
@@ -609,10 +615,6 @@ export async function DELETE(request: Request) {
 
       if (!actor?.isActive) {
         throw new AdminManagementError(403, "Your admin access is no longer active.");
-      }
-
-      if (actor.role !== ADMIN_ROLE.CORE_ADMIN) {
-        throw new AdminManagementError(403, "Only core admins can manage administrator access.");
       }
 
       const targetAdmin = await tx.admin.findUnique({
@@ -649,6 +651,7 @@ export async function DELETE(request: Request) {
 
       const removalBlockedReason = getAdminRemovalBlockedReason({
         actorAdminId,
+        actorAdminRole: actor.role,
         targetAdmin,
         activeAdminCount,
         activeCoreAdminCount,

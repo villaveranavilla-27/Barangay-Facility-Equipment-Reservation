@@ -22,10 +22,10 @@ type Reservation = {
 };
 
 function formatDateTimeRange(start?: string, end?: string) {
-  if (!start && !end) return "—";
+  if (!start && !end) return "N/A";
 
   const formatValue = (value?: string) => {
-    if (!value) return "—";
+    if (!value) return "N/A";
 
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
@@ -53,7 +53,7 @@ function normalizeStatus(status?: string, equipmentReturnStatus?: string | null)
   if (normalized === "RETURNED") return "RETURNED";
   if (normalized === "CANCELLED") return "CANCELLED";
 
-  return raw || "—";
+  return raw || "N/A";
 }
 
 function getStatusClasses(status: string) {
@@ -103,27 +103,20 @@ export default function ReportsAnalytics() {
           throw new Error(getJsonErrorMessage(data, "Failed to fetch reservations"));
         }
 
-        const normalized = Array.isArray(data) ? data : [];
-
-        setReservations(normalized);
-      } catch (error) {
-        console.error(error);
+        setReservations(Array.isArray(data) ? data : []);
+      } catch (fetchError) {
+        console.error(fetchError);
         setError("Unable to load reservations.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchReservations();
+    void fetchReservations();
   }, []);
 
   const filtered = useMemo(() => {
-    const includedStatuses = new Set([
-      "APPROVED",
-      "DENIED",
-      "CANCELLED",
-      "BORROWED",
-    ]);
+    const includedStatuses = new Set(["APPROVED", "DENIED", "CANCELLED", "BORROWED"]);
 
     return reservations.filter((item) => {
       const displayStatus = normalizeStatus(item.status, item.equipmentReturnStatus);
@@ -152,12 +145,8 @@ export default function ReportsAnalytics() {
     });
   }, [reservations, fromDate, toDate]);
 
-  const exportPDF = () => {
-    window.print();
-  };
-
   return (
-    <div className="flex w-full flex-col gap-6 p-6">
+    <div className="flex w-full flex-col gap-6 p-4 sm:p-6">
       <div>
         <h1 className="text-2xl font-bold">Reports &amp; Analytics</h1>
         <p className="text-sm text-gray-600">
@@ -165,24 +154,25 @@ export default function ReportsAnalytics() {
         </p>
       </div>
 
-      <div className="rounded-2xl bg-white p-6 shadow">
-        <div className="mb-4 flex items-center justify-between">
+      <div className="rounded-2xl bg-white p-4 shadow sm:p-6">
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="text-xl font-bold">Reservations Summary</h2>
 
           <button
-            onClick={exportPDF}
-            className="flex items-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white"
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-green-600 px-4 py-2 text-sm text-white sm:w-auto"
           >
-            📥 Export All Data
+            Export All Data
           </button>
         </div>
 
-        <div className="mb-4 flex items-center gap-3">
+        <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-[auto_1fr_auto_1fr] lg:items-center">
           <span className="text-sm font-medium">From:</span>
 
           <input
             type="date"
-            className="rounded-md border px-2 py-1 text-sm"
+            className="rounded-md border px-2 py-2 text-sm"
             value={fromDate}
             onChange={(e) => setFromDate(e.target.value)}
           />
@@ -191,90 +181,124 @@ export default function ReportsAnalytics() {
 
           <input
             type="date"
-            className="rounded-md border px-2 py-1 text-sm"
+            className="rounded-md border px-2 py-2 text-sm"
             value={toDate}
             onChange={(e) => setToDate(e.target.value)}
           />
         </div>
 
-        {loading && (
-          <p className="text-sm text-gray-500">Loading reservations...</p>
-        )}
+        {loading ? <p className="text-sm text-gray-500">Loading reservations...</p> : null}
 
-        {error && (
-          <p className="text-sm text-red-500">{error}</p>
-        )}
+        {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
-        {!loading && !error && (
-          <div className="overflow-x-auto rounded-lg">
-            <table className="w-full border-collapse text-sm">
-              <thead>
-                <tr className="bg-gray-100 text-left">
-                  <th className="px-4 py-3">Reservation ID</th>
-                  <th className="px-4 py-3">Name</th>
-                  <th className="px-4 py-3">Facility / Equipment</th>
-                  <th className="px-4 py-3">Time</th>
-                  <th className="px-4 py-3">Status</th>
-                </tr>
-              </thead>
+        {!loading && !error ? (
+          <div className="space-y-3">
+            <div className="space-y-3 md:hidden">
+              {filtered.length === 0 ? (
+                <div className="rounded-2xl border border-dashed border-gray-200 px-4 py-6 text-center text-sm italic text-gray-500">
+                  No reservations found for the selected date range.
+                </div>
+              ) : (
+                filtered.map((row, index) => {
+                  const displayStatus = normalizeStatus(row.status, row.equipmentReturnStatus);
 
-              <tbody>
-                {filtered.length === 0 ? (
-                  <tr>
-                    <td
-                      colSpan={5}
-                      className="py-6 text-center italic text-gray-500"
+                  return (
+                    <div
+                      key={row.reservationId ?? row.id ?? index}
+                      className="rounded-2xl border border-gray-200 bg-slate-50 p-4"
                     >
-                      No reservations found for the selected date range.
-                    </td>
-                  </tr>
-                ) : (
-                  filtered.map((row, index) => {
-                    const displayStatus = normalizeStatus(
-                      row.status,
-                      row.equipmentReturnStatus
-                    );
+                      <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                          <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                            Reservation #{row.reservationId ?? row.id ?? "N/A"}
+                          </p>
+                          <p className="mt-1 font-semibold text-slate-900">
+                            {row.facility?.itemName || row.itemName || "N/A"}
+                          </p>
+                        </div>
+                        <span
+                          className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusClasses(
+                            displayStatus
+                          )}`}
+                        >
+                          {formatStatusLabel(displayStatus)}
+                        </span>
+                      </div>
 
-                    return (
-                      <tr
-                        key={row.reservationId ?? row.id ?? index}
-                        className="border-b"
-                      >
-                        <td className="px-4 py-3">
-                          {row.reservationId ?? row.id ?? "—"}
-                        </td>
-
-                        <td className="px-4 py-3">
-                          {row.residentName || row.name || "—"}
-                        </td>
-
-                        <td className="px-4 py-3">
-                          {row.facility?.itemName || row.itemName || "—"}
-                        </td>
-
-                        <td className="px-4 py-3">
+                      <div className="mt-3 space-y-2 text-sm text-gray-600">
+                        <p>
+                          <strong className="text-slate-900">Resident:</strong>{" "}
+                          {row.residentName || row.name || "N/A"}
+                        </p>
+                        <p>
+                          <strong className="text-slate-900">Time:</strong>{" "}
                           {row.startDateTime || row.endDateTime
                             ? formatDateTimeRange(row.startDateTime, row.endDateTime)
-                            : row.time || "—"}
-                        </td>
+                            : row.time || "N/A"}
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
 
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusClasses(
-                              displayStatus
-                            )}`}
-                          >
-                            {formatStatusLabel(displayStatus)}
-                          </span>
-                        </td>
-                      </tr>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+            <div className="hidden overflow-x-auto rounded-lg md:block">
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-gray-100 text-left">
+                    <th className="px-4 py-3">Reservation ID</th>
+                    <th className="px-4 py-3">Name</th>
+                    <th className="px-4 py-3">Facility / Equipment</th>
+                    <th className="px-4 py-3">Time</th>
+                    <th className="px-4 py-3">Status</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filtered.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center italic text-gray-500">
+                        No reservations found for the selected date range.
+                      </td>
+                    </tr>
+                  ) : (
+                    filtered.map((row, index) => {
+                      const displayStatus = normalizeStatus(
+                        row.status,
+                        row.equipmentReturnStatus
+                      );
+
+                      return (
+                        <tr key={row.reservationId ?? row.id ?? index} className="border-b">
+                          <td className="px-4 py-3">{row.reservationId ?? row.id ?? "N/A"}</td>
+                          <td className="px-4 py-3">{row.residentName || row.name || "N/A"}</td>
+                          <td className="px-4 py-3">
+                            {row.facility?.itemName || row.itemName || "N/A"}
+                          </td>
+                          <td className="px-4 py-3">
+                            {row.startDateTime || row.endDateTime
+                              ? formatDateTimeRange(row.startDateTime, row.endDateTime)
+                              : row.time || "N/A"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex rounded-full px-3 py-1 text-xs font-medium ${getStatusClasses(
+                                displayStatus
+                              )}`}
+                            >
+                              {formatStatusLabel(displayStatus)}
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
-        )}
+        ) : null}
       </div>
     </div>
   );

@@ -13,7 +13,9 @@ export default async function UserLayout({ children }: { children: React.ReactNo
     <div className="flex min-h-screen bg-[var(--bg)]">
       <ProtectedSessionGuard />
       <Sidebar role="user" />
-      <main className="ml-80 flex-1 overflow-y-auto p-6">{children}</main>
+      <main className="w-full flex-1 overflow-x-hidden overflow-y-auto p-4 pt-24 sm:p-6 sm:pt-24 lg:ml-80 lg:p-6 lg:pt-6">
+        {children}
+      </main>
     </div>
   );
 }

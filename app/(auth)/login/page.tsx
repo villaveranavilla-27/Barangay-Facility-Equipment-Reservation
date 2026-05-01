@@ -5,14 +5,14 @@ import { AuthForm } from "@/components/auth-form";
 export default function LoginPage() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-[#f3f3f3] px-4">
-      <div className="w-full max-w-[600px] rounded-3xl bg-white px-16 py-20 shadow-md">
+      <div className="w-full max-w-[600px] rounded-3xl bg-white px-6 py-10 shadow-md sm:px-10 sm:py-14 lg:px-16 lg:py-20">
         <div className="mb-8 flex flex-col items-center">
           <Image
             src="/logo.png"
             alt="Barangay Go Logo"
             width={300}
             height={100}
-            className="object-contain"
+            className="h-auto w-48 object-contain sm:w-64"
             priority
           />
         </div>
@@ -23,7 +23,7 @@ export default function LoginPage() {
 
         <AuthForm mode="user-login" />
 
-        <div className="mt-6 flex items-center justify-between text-base text-green-700">
+        <div className="mt-6 flex flex-col gap-2 text-sm text-green-700 sm:flex-row sm:items-center sm:justify-between sm:text-base">
           <Link href="/admin-login" className="font-medium hover:underline">
             Admin Login
           </Link>

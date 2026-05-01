@@ -231,95 +231,168 @@ export function UsersDirectory() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-
-          
-
         </div>
       </Card>
 
-      <Card className="overflow-x-auto">
-        {loading ? (
+      {loading ? (
+        <Card>
           <p className="text-sm text-text-secondary">Loading users...</p>
-        ) : (
-          <table className="min-w-full text-left">
-            <thead>
-              <tr className="border-b border-border text-sm text-text-secondary">
-                <th className="py-3 pr-4">Full Name</th>
-                <th className="py-3 pr-4">Username</th>
-                <th className="py-3 pr-4">Email</th>
-                <th className="py-3 pr-4">Contact</th>
-                <th className="py-3 pr-4">Status</th>
-                <th className="py-3 pr-4">Role</th>
-                <th className="py-3">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredUsers.map((user) => {
-                const linkedAdmin =
-                  activeAdminsByUsername.get(user.username.toLowerCase()) ?? null;
-                const isCurrentAdminLinkedUser =
-                  user.isActive && currentAdminUsername === user.username;
+        </Card>
+      ) : (
+        <>
+          <div className="space-y-3 md:hidden">
+            {filteredUsers.map((user) => {
+              const linkedAdmin = activeAdminsByUsername.get(user.username.toLowerCase()) ?? null;
+              const isCurrentAdminLinkedUser =
+                user.isActive && currentAdminUsername === user.username;
 
-                return (
-                  <tr key={user.userId} className="border-b border-border">
-                    <td className="py-3 pr-4">{user.name}</td>
-                    <td className="py-3 pr-4">{user.username}</td>
-                    <td className="py-3 pr-4">{user.email}</td>
-                    <td className="py-3 pr-4">{user.contactNumber}</td>
-                    <td className="py-3 pr-4">
-                      <Badge tone={user.isActive ? "green" : "red"}>
-                        {user.isActive ? "Active" : "Inactive"}
-                      </Badge>
-                    </td>
-                    <td className="py-3 pr-4">
-                      <Badge tone={linkedAdmin ? "blue" : "neutral"}>
-                        {linkedAdmin
-                          ? linkedAdmin.role === "CORE_ADMIN"
-                            ? "Core Admin"
-                            : "Admin"
-                          : "User"}
-                      </Badge>
-                    </td>
-                    <td className="py-3">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                          variant={user.isActive ? "danger" : "secondary"}
-                          className="px-3 py-1.5 text-sm"
-                          disabled={
-                            statusPendingUserId === user.userId || isCurrentAdminLinkedUser
-                          }
-                          onClick={() => void toggleUserStatus(user)}
-                        >
-                          {statusPendingUserId === user.userId
-                            ? user.isActive
-                              ? "Deactivating..."
-                              : "Activating..."
-                            : user.isActive
-                              ? "Deactivate"
-                              : "Activate"}
-                        </Button>
-                        {isCurrentAdminLinkedUser ? (
-                          <span className="text-xs text-text-secondary">
-                            Current admin-linked user
-                          </span>
-                        ) : null}
-                        {!user.isActive && user.deactivatedAt ? (
-                          <span className="text-xs text-text-secondary">
-                            Since {formatDateTime(user.deactivatedAt)}
-                          </span>
-                        ) : null}
+              return (
+                <Card key={user.userId} className="p-4">
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-lg font-semibold text-text-primary">{user.name}</p>
+                        <p className="text-sm text-text-secondary">@{user.username}</p>
                       </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </Card>
+
+                      <div className="flex flex-wrap gap-2">
+                        <Badge tone={user.isActive ? "green" : "red"}>
+                          {user.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                        <Badge tone={linkedAdmin ? "blue" : "neutral"}>
+                          {linkedAdmin
+                            ? linkedAdmin.role === "CORE_ADMIN"
+                              ? "Core Admin"
+                              : "Admin"
+                            : "User"}
+                        </Badge>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2 text-sm text-text-secondary">
+                      <p className="break-words">
+                        <strong className="text-text-primary">Email:</strong> {user.email}
+                      </p>
+                      <p>
+                        <strong className="text-text-primary">Contact:</strong>{" "}
+                        {user.contactNumber}
+                      </p>
+                      {!user.isActive && user.deactivatedAt ? (
+                        <p>
+                          <strong className="text-text-primary">Inactive since:</strong>{" "}
+                          {formatDateTime(user.deactivatedAt)}
+                        </p>
+                      ) : null}
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <Button
+                        variant={user.isActive ? "danger" : "secondary"}
+                        className="w-full text-sm"
+                        disabled={statusPendingUserId === user.userId || isCurrentAdminLinkedUser}
+                        onClick={() => void toggleUserStatus(user)}
+                      >
+                        {statusPendingUserId === user.userId
+                          ? user.isActive
+                            ? "Deactivating..."
+                            : "Activating..."
+                          : user.isActive
+                            ? "Deactivate"
+                            : "Activate"}
+                      </Button>
+                      {isCurrentAdminLinkedUser ? (
+                        <span className="text-xs text-text-secondary">
+                          Current admin-linked user
+                        </span>
+                      ) : null}
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+
+          <Card className="hidden overflow-x-auto md:block">
+            <table className="min-w-full text-left">
+              <thead>
+                <tr className="border-b border-border text-sm text-text-secondary">
+                  <th className="py-3 pr-4">Full Name</th>
+                  <th className="py-3 pr-4">Username</th>
+                  <th className="py-3 pr-4">Email</th>
+                  <th className="py-3 pr-4">Contact</th>
+                  <th className="py-3 pr-4">Status</th>
+                  <th className="py-3 pr-4">Role</th>
+                  <th className="py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredUsers.map((user) => {
+                  const linkedAdmin =
+                    activeAdminsByUsername.get(user.username.toLowerCase()) ?? null;
+                  const isCurrentAdminLinkedUser =
+                    user.isActive && currentAdminUsername === user.username;
+
+                  return (
+                    <tr key={user.userId} className="border-b border-border">
+                      <td className="py-3 pr-4">{user.name}</td>
+                      <td className="py-3 pr-4">{user.username}</td>
+                      <td className="py-3 pr-4">{user.email}</td>
+                      <td className="py-3 pr-4">{user.contactNumber}</td>
+                      <td className="py-3 pr-4">
+                        <Badge tone={user.isActive ? "green" : "red"}>
+                          {user.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </td>
+                      <td className="py-3 pr-4">
+                        <Badge tone={linkedAdmin ? "blue" : "neutral"}>
+                          {linkedAdmin
+                            ? linkedAdmin.role === "CORE_ADMIN"
+                              ? "Core Admin"
+                              : "Admin"
+                            : "User"}
+                        </Badge>
+                      </td>
+                      <td className="py-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Button
+                            variant={user.isActive ? "danger" : "secondary"}
+                            className="px-3 py-1.5 text-sm"
+                            disabled={
+                              statusPendingUserId === user.userId || isCurrentAdminLinkedUser
+                            }
+                            onClick={() => void toggleUserStatus(user)}
+                          >
+                            {statusPendingUserId === user.userId
+                              ? user.isActive
+                                ? "Deactivating..."
+                                : "Activating..."
+                              : user.isActive
+                                ? "Deactivate"
+                                : "Activate"}
+                          </Button>
+                          {isCurrentAdminLinkedUser ? (
+                            <span className="text-xs text-text-secondary">
+                              Current admin-linked user
+                            </span>
+                          ) : null}
+                          {!user.isActive && user.deactivatedAt ? (
+                            <span className="text-xs text-text-secondary">
+                              Since {formatDateTime(user.deactivatedAt)}
+                            </span>
+                          ) : null}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Card>
+        </>
+      )}
 
       <Card>
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <div className="text-lg font-semibold">Admin Accounts</div>
             <p className="mt-1 text-sm text-text-secondary">
@@ -333,11 +406,13 @@ export function UsersDirectory() {
           </div>
 
           {canPromoteAdmins ? (
-            <Button onClick={() => setOpen(true)}>+ Add New Admin</Button>
+            <Button className="w-full sm:w-auto" onClick={() => setOpen(true)}>
+              + Add New Admin
+            </Button>
           ) : null}
         </div>
 
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
           {admins.map((admin) => (
             <div key={admin.adminId} className="rounded-xl border border-border p-4">
               <div className="flex flex-wrap items-start justify-between gap-3">

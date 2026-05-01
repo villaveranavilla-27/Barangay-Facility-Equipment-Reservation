@@ -503,67 +503,67 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
         />
       ) : (
         <>
-          {mode === "admin" ? (
-            <div className="space-y-3 md:hidden">
-              {filtered.map((row) => {
-                const displayStatus = getDisplayStatus(row, mode);
+          <div className="space-y-3 md:hidden">
+            {filtered.map((row) => {
+              const displayStatus = getDisplayStatus(row, mode);
 
-                return (
-                  <Card key={row.reservationId} className="p-4">
-                    <div className="space-y-4">
-                      <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div>
-                          <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">
-                            Reservation #{row.reservationId}
-                          </p>
-                          <p className="mt-1 text-lg font-semibold text-text-primary">
-                            {row.itemName}
-                          </p>
-                        </div>
-                        <Badge tone={statusTone(displayStatus)}>
-                          {formatStatus(displayStatus)}
-                        </Badge>
+              return (
+                <Card key={row.reservationId} className="p-4">
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                      <div>
+                        <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+                          Reservation #{row.reservationId}
+                        </p>
+                        <p className="mt-1 text-lg font-semibold text-text-primary">
+                          {row.itemName}
+                        </p>
                       </div>
+                      <Badge tone={statusTone(displayStatus)}>
+                        {formatStatus(displayStatus)}
+                      </Badge>
+                    </div>
 
-                      <div className="grid gap-3 text-sm text-text-secondary">
+                    <div className="grid gap-3 text-sm text-text-secondary">
+                      {mode === "admin" ? (
                         <p>
                           <strong className="text-text-primary">Resident:</strong>{" "}
                           {row.residentName}
                         </p>
-                        <p>
-                          <strong className="text-text-primary">Schedule:</strong>{" "}
-                          {fmtDateTime(row.startDateTime)} - {fmtDateTime(row.endDateTime)}
-                        </p>
-                        <p>
-                          <strong className="text-text-primary">Type:</strong>{" "}
-                          {formatStatus(row.itemType)}
-                        </p>
-                      </div>
-
-                      <ReservationActions
-                        mode={mode}
-                        reservation={row}
-                        pending={pending}
-                        onView={setView}
-                        onApprove={(reservation) => {
-                          setDecision({ action: "APPROVED", reservation });
-                          setNotes("");
-                        }}
-                        onDeny={(reservation) => {
-                          setDecision({ action: "DENIED", reservation });
-                          setNotes("");
-                        }}
-                        onReturn={setReturning}
-                        onCancel={setCancelling}
-                      />
+                      ) : null}
+                      <p>
+                        <strong className="text-text-primary">Schedule:</strong>{" "}
+                        {fmtDateTime(row.startDateTime)} - {fmtDateTime(row.endDateTime)}
+                      </p>
+                      <p>
+                        <strong className="text-text-primary">Type:</strong>{" "}
+                        {formatStatus(row.itemType)}
+                      </p>
                     </div>
-                  </Card>
-                );
-              })}
-            </div>
-          ) : null}
 
-          <Card className={mode === "admin" ? "hidden overflow-x-auto md:block" : "overflow-x-auto"}>
+                    <ReservationActions
+                      mode={mode}
+                      reservation={row}
+                      pending={pending}
+                      onView={setView}
+                      onApprove={(reservation) => {
+                        setDecision({ action: "APPROVED", reservation });
+                        setNotes("");
+                      }}
+                      onDeny={(reservation) => {
+                        setDecision({ action: "DENIED", reservation });
+                        setNotes("");
+                      }}
+                      onReturn={setReturning}
+                      onCancel={setCancelling}
+                    />
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+
+          <Card className="hidden overflow-x-auto md:block">
             <table className="min-w-[760px] text-left">
               <thead>
                 <tr className="border-b border-border text-sm text-text-secondary">

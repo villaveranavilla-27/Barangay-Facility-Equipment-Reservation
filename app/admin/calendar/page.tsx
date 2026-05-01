@@ -7,7 +7,7 @@ export default function AdminCalendarPage() {
   
       <div className="mx-auto max-w-[1500px] space-y-8">
         <div>
-          <h1 className="text-[2.35rem] font-semibold tracking-[-0.03em] text-[#11233d]">
+          <h1 className="text-2xl font-semibold tracking-[-0.03em] text-[#11233d] sm:text-[2.35rem]">
             Calendar
           </h1>
           <p className="mt-2 text-base font-medium text-[#6b7280]">

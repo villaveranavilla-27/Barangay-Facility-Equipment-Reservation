@@ -100,7 +100,7 @@ export function CatalogSearchField({
   placeholder?: string;
 }) {
   return (
-    <div className="rounded-[24px] border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="rounded-[24px] border border-gray-200 bg-white p-3 shadow-sm sm:p-4">
       <div className="relative">
         <div className="pointer-events-none absolute inset-y-0 left-5 flex items-center">
           <HugeiconsIcon
@@ -112,7 +112,7 @@ export function CatalogSearchField({
         <input
           type="text"
           placeholder={placeholder}
-          className="h-14 w-full rounded-[20px] border border-gray-200 bg-white pl-14 pr-4 text-base text-gray-700 outline-none"
+          className="h-12 w-full rounded-[20px] border border-gray-200 bg-white pl-12 pr-4 text-sm text-gray-700 outline-none sm:h-14 sm:pl-14 sm:text-base"
           value={value}
           onChange={onChange}
         />
@@ -126,7 +126,7 @@ export function CatalogTabButton({
   active,
   onClick,
   icon,
-  minWidthClassName = "min-w-[220px]",
+  minWidthClassName = "min-w-[160px] sm:min-w-[220px]",
 }: {
   label: string;
   active: boolean;
@@ -139,7 +139,7 @@ export function CatalogTabButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "flex items-center justify-center gap-2 rounded-[18px] px-6 py-3 text-lg font-semibold transition",
+        "flex items-center justify-center gap-2 rounded-[18px] px-4 py-3 text-base font-semibold transition sm:px-6 sm:text-lg",
         minWidthClassName,
         active ? "bg-green-700 text-white" : "text-gray-800 hover:bg-gray-50"
       )}

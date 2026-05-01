@@ -11,7 +11,7 @@ import timeGridPlugin from "@fullcalendar/timegrid";
 import interactionPlugin from "@fullcalendar/interaction";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Badge, Modal } from "@/components/common";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { cn, fmtDateTime } from "@/lib/utils";
 
 type CalendarEvent = {
@@ -26,6 +26,8 @@ type CalendarEvent = {
     residentName: string;
     itemType: string;
     itemName: string;
+    actualStart?: string;
+    actualEnd?: string;
   };
 };
 
@@ -58,6 +60,22 @@ function formatEventTime(start: Date | null, end: Date | null) {
 
 function formatStatusLabel(status: string) {
   return status.charAt(0) + status.slice(1).toLowerCase();
+}
+
+function padDateSegment(value: number) {
+  return String(value).padStart(2, "0");
+}
+
+function formatDateOnly(value: string) {
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value.slice(0, 10);
+  }
+
+  return `${date.getFullYear()}-${padDateSegment(date.getMonth() + 1)}-${padDateSegment(
+    date.getDate()
+  )}`;
 }
 
 function getBadgeTone(status: string) {
@@ -94,6 +112,23 @@ export function CalendarView({ scope = "approved" }: { scope?: CalendarScope }) 
       .catch(() => setEvents([]));
   }, [scope]);
 
+  const calendarEvents = useMemo(() => {
+    if (activeView !== "dayGridMonth") {
+      return events;
+    }
+
+    return events.map((event) => ({
+      ...event,
+      start: formatDateOnly(event.start),
+      end: undefined,
+      extendedProps: {
+        ...event.extendedProps,
+        actualStart: event.start,
+        actualEnd: event.end,
+      },
+    }));
+  }, [activeView, events]);
+
   function handleDatesSet(arg: DatesSetArg) {
     setCurrentTitle(arg.view.title);
     setActiveView(arg.view.type as CalendarViewMode);
@@ -128,8 +163,12 @@ export function CalendarView({ scope = "approved" }: { scope?: CalendarScope }) 
     setSelected({
       id: arg.event.id,
       title: arg.event.title,
-      start: arg.event.start?.toISOString() ?? arg.event.startStr,
-      end: arg.event.end?.toISOString() || arg.event.endStr || undefined,
+      start: details.actualStart ?? arg.event.start?.toISOString() ?? arg.event.startStr,
+      end:
+        details.actualEnd ??
+        arg.event.end?.toISOString() ??
+        arg.event.endStr ??
+        undefined,
       extendedProps: {
         status: String(details.status ?? "APPROVED"),
         purpose: String(details.purpose ?? ""),
@@ -142,10 +181,16 @@ export function CalendarView({ scope = "approved" }: { scope?: CalendarScope }) 
   }
 
   function renderEventContent(arg: EventContentArg) {
+    const details = arg.event.extendedProps as CalendarEvent["extendedProps"];
     const status = String(arg.event.extendedProps.status ?? "APPROVED");
     const pillTone =
       status === "PENDING" ? "calendar-event-pill--amber" : "calendar-event-pill--green";
-    const timeLabel = formatEventTime(arg.event.start, arg.event.end);
+    const actualStart = details.actualStart ? new Date(details.actualStart) : arg.event.start;
+    const actualEnd = details.actualEnd ? new Date(details.actualEnd) : arg.event.end;
+    const timeLabel = formatEventTime(
+      actualStart && !Number.isNaN(actualStart.getTime()) ? actualStart : null,
+      actualEnd && !Number.isNaN(actualEnd.getTime()) ? actualEnd : null
+    );
 
     return (
       <div className={cn("calendar-event-pill", pillTone)}>
@@ -189,12 +234,12 @@ export function CalendarView({ scope = "approved" }: { scope?: CalendarScope }) 
               </button>
             </div>
 
-            <h2 className="ml-1 text-[1.9rem] font-semibold tracking-[-0.03em] text-[#11233d]">
+            <h2 className="text-2xl font-semibold tracking-[-0.03em] text-[#11233d] sm:ml-1 sm:text-[1.9rem]">
               {currentTitle}
             </h2>
           </div>
 
-          <div className="inline-flex w-fit items-center rounded-full bg-[#eef2f6] p-1">
+          <div className="inline-flex w-full flex-wrap items-center rounded-[1.25rem] bg-[#eef2f6] p-1 sm:w-fit sm:rounded-full">
             {viewOptions.map((option) => {
               const isActive = activeView === option.value;
 
@@ -204,7 +249,7 @@ export function CalendarView({ scope = "approved" }: { scope?: CalendarScope }) 
                   type="button"
                   onClick={() => handleViewChange(option.value)}
                   className={cn(
-                    "inline-flex h-11 items-center justify-center rounded-full px-5 text-sm font-semibold transition",
+                    "inline-flex h-11 flex-1 items-center justify-center rounded-full px-4 text-sm font-semibold transition sm:flex-none sm:px-5",
                     isActive
                       ? "bg-[#11233d] text-white shadow-[0_6px_14px_rgba(15,23,42,0.14)]"
                       : "text-[#4b5563] hover:text-[#11233d]"
@@ -232,7 +277,7 @@ export function CalendarView({ scope = "approved" }: { scope?: CalendarScope }) 
             dayMaxEventRows={3}
             allDaySlot={false}
             dayHeaderFormat={{ weekday: "long" }}
-            events={events}
+            events={calendarEvents}
             datesSet={handleDatesSet}
             eventClick={handleEventClick}
             eventContent={renderEventContent}

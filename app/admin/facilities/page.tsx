@@ -17,7 +17,7 @@ export default function AdminFacilitiesPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div>
-        <h1 className="text-[2.35rem] font-semibold tracking-[-0.03em] text-[#11233d]">
+        <h1 className="text-2xl font-semibold tracking-[-0.03em] text-[#11233d] sm:text-[2.35rem]">
           Facility & Equipment
         </h1>
         <p className="mt-2 text-base font-medium text-[#6b7280]">
@@ -31,7 +31,7 @@ export default function AdminFacilitiesPage() {
         onChange={(e) => setSearchQuery(e.target.value)}
       />
 
-      <div className="inline-flex rounded-[22px] border border-gray-200 bg-white p-1 shadow-sm">
+      <div className="flex w-full flex-col rounded-[22px] border border-gray-200 bg-white p-1 shadow-sm sm:inline-flex sm:w-auto sm:flex-row">
         <CatalogTabButton
           label="Facilities"
           icon={HousePlusIcon}

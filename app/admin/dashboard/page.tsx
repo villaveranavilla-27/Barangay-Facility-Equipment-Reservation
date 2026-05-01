@@ -14,30 +14,23 @@ export default function AdminDashboardPage() {
 
     const loadDashboard = async () => {
       try {
-        const [
-          reservationsResult,
-          usersResult,
-          facilitiesResult,
-          equipmentResult,
-        ] = await Promise.all([
-          fetchJson<any[] | { error?: string }>("/api/reservations?scope=all", {
-            cache: "no-store",
-          }),
-          fetchJson<any[] | { error?: string }>("/api/users", { cache: "no-store" }),
-          fetchJson<any[] | { error?: string }>("/api/facilities", {
-            cache: "no-store",
-          }),
-          fetchJson<any[] | { error?: string }>("/api/equipment", {
-            cache: "no-store",
-          }),
-        ]);
+        const [reservationsResult, usersResult, facilitiesResult, equipmentResult] =
+          await Promise.all([
+            fetchJson<any[] | { error?: string }>("/api/reservations?scope=all", {
+              cache: "no-store",
+            }),
+            fetchJson<any[] | { error?: string }>("/api/users", { cache: "no-store" }),
+            fetchJson<any[] | { error?: string }>("/api/facilities", {
+              cache: "no-store",
+            }),
+            fetchJson<any[] | { error?: string }>("/api/equipment", {
+              cache: "no-store",
+            }),
+          ]);
 
         if (!reservationsResult.response.ok) {
           throw new Error(
-            getJsonErrorMessage(
-              reservationsResult.data,
-              "Failed to load reservations"
-            )
+            getJsonErrorMessage(reservationsResult.data, "Failed to load reservations")
           );
         }
 
@@ -106,8 +99,10 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold">Admin Dashboard</h1>
-        <p className="mt-1 text-text-secondary">Monitor reservations and manage barangay resources.</p>
+        <h1 className="text-2xl font-semibold sm:text-3xl">Admin Dashboard</h1>
+        <p className="mt-1 text-text-secondary">
+          Monitor reservations and manage barangay resources.
+        </p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -119,7 +114,53 @@ export default function AdminDashboardPage() {
 
       <Card>
         <div className="mb-4 text-lg font-semibold">Recent Requests</div>
-        <div className="overflow-x-auto">
+
+        <div className="space-y-3 md:hidden">
+          {recent.map((row) => (
+            <div
+              key={row.reservationId}
+              className="rounded-2xl border border-border bg-slate-50 p-4"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide text-text-secondary">
+                    Reservation #{row.reservationId}
+                  </p>
+                  <p className="mt-1 text-base font-semibold text-text-primary">
+                    {row.itemName}
+                  </p>
+                </div>
+                <Badge
+                  tone={
+                    row.status === "PENDING"
+                      ? "yellow"
+                      : row.status === "APPROVED"
+                        ? "green"
+                        : "red"
+                  }
+                >
+                  {row.status}
+                </Badge>
+              </div>
+
+              <div className="mt-3 space-y-2 text-sm text-text-secondary">
+                <p>
+                  <strong className="text-text-primary">Resident:</strong> {row.residentName}
+                </p>
+                <p>
+                  <strong className="text-text-primary">Schedule:</strong>{" "}
+                  {fmtDateTime(row.startDateTime)}
+                </p>
+              </div>
+
+              <Button href="/admin/reservations" variant="secondary" className="mt-4 w-full">
+                View
+              </Button>
+            </div>
+          ))}
+        </div>
+
+        <div className="hidden overflow-x-auto md:block">
           <table className="min-w-full text-left text-sm">
             <thead>
               <tr className="border-b border-border text-text-secondary">
@@ -132,15 +173,29 @@ export default function AdminDashboardPage() {
               </tr>
             </thead>
             <tbody>
-              {recent.map((r) => (
-                <tr key={r.reservationId} className="border-b border-border">
-                  <td className="py-3 pr-4">{r.reservationId}</td>
-                  <td className="py-3 pr-4">{r.residentName}</td>
-                  <td className="py-3 pr-4">{r.itemName}</td>
-                  <td className="py-3 pr-4">{fmtDateTime(r.startDateTime)}</td>
-                  <td className="py-3 pr-4"><Badge tone={r.status === "PENDING" ? "yellow" : r.status === "APPROVED" ? "green" : "red"}>{r.status}</Badge></td>
+              {recent.map((row) => (
+                <tr key={row.reservationId} className="border-b border-border">
+                  <td className="py-3 pr-4">{row.reservationId}</td>
+                  <td className="py-3 pr-4">{row.residentName}</td>
+                  <td className="py-3 pr-4">{row.itemName}</td>
+                  <td className="py-3 pr-4">{fmtDateTime(row.startDateTime)}</td>
                   <td className="py-3 pr-4">
-                    <Button href="/admin/reservations" variant="secondary">View</Button>
+                    <Badge
+                      tone={
+                        row.status === "PENDING"
+                          ? "yellow"
+                          : row.status === "APPROVED"
+                            ? "green"
+                            : "red"
+                      }
+                    >
+                      {row.status}
+                    </Badge>
+                  </td>
+                  <td className="py-3 pr-4">
+                    <Button href="/admin/reservations" variant="secondary">
+                      View
+                    </Button>
                   </td>
                 </tr>
               ))}

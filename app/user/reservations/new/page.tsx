@@ -18,7 +18,7 @@ export default function NewReservationPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-3xl font-semibold">Make a Reservation</h1>
+        <h1 className="text-2xl font-semibold sm:text-3xl">Make a Reservation</h1>
         <p className="mt-1 text-text-secondary">Select an item, choose a schedule, and submit your request.</p>
       </div>
       <ReservationForm userId={userId} />

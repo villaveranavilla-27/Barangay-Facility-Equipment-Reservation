@@ -295,7 +295,7 @@ export function AdminCatalogManager({
   return (
     <>
       <div className="rounded-[24px] border border-gray-200 bg-white shadow-sm">
-        <div className="border-b border-gray-200 px-6 py-5">
+        <div className="border-b border-gray-200 px-4 py-5 sm:px-6">
           <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
             <div>
               <h2 className="text-2xl font-semibold text-slate-900">
@@ -306,7 +306,7 @@ export function AdminCatalogManager({
 
             <Button
               type="button"
-              className="h-11 rounded-full bg-green-700 px-5 text-sm font-semibold text-white hover:bg-green-800"
+              className="h-11 w-full rounded-full bg-green-700 px-5 text-sm font-semibold text-white hover:bg-green-800 sm:w-auto"
               onClick={openCreateModal}
             >
               <HugeiconsIcon icon={Add01Icon} size={18} className="mr-2" />
@@ -315,7 +315,7 @@ export function AdminCatalogManager({
           </div>
         </div>
 
-        <div className="divide-y divide-gray-200 px-6">
+        <div className="divide-y divide-gray-200 px-4 sm:px-6">
           {loading ? (
             <div className="py-10 text-center text-sm text-gray-500">
               Loading {kind === "facility" ? "facilities" : "equipment"}...

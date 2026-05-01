@@ -11,9 +11,7 @@ export function Card({
   children,
 }: React.PropsWithChildren<{ className?: string }>) {
   return (
-    <div
-      className={cn("rounded-2xl bg-white p-6 shadow-soft", className)}
-    >
+    <div className={cn("rounded-2xl bg-white p-4 shadow-soft sm:p-6", className)}>
       {children}
     </div>
   );
@@ -30,17 +28,13 @@ export function Button({
   href?: string;
 }) {
   const base =
-    "inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium transition disabled:opacity-50 disabled:pointer-events-none";
+    "inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium transition disabled:pointer-events-none disabled:opacity-50";
 
   const styles: Record<Variant, string> = {
-    primary:
-      "bg-[#165719] text-white hover:bg-[#134d15]",
-    secondary:
-      "bg-[#e9f3ea] text-[#165719] hover:bg-[#d8eadb]",
-    ghost:
-      "bg-transparent text-[#165719] hover:bg-[#e9f3ea]",
-    danger:
-      "bg-red-600 text-white hover:opacity-90",
+    primary: "bg-[#165719] text-white hover:bg-[#134d15]",
+    secondary: "bg-[#e9f3ea] text-[#165719] hover:bg-[#d8eadb]",
+    ghost: "bg-transparent text-[#165719] hover:bg-[#e9f3ea]",
+    danger: "bg-red-600 text-white hover:opacity-90",
   };
 
   const classes = cn(base, styles[variant], className);
@@ -72,9 +66,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
   );
 }
 
-export function Select(
-  props: React.SelectHTMLAttributes<HTMLSelectElement>
-) {
+export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return (
     <select
       {...props}
@@ -86,9 +78,7 @@ export function Select(
   );
 }
 
-export function Textarea(
-  props: React.TextareaHTMLAttributes<HTMLTextAreaElement>
-) {
+export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   return (
     <textarea
       {...props}
@@ -118,11 +108,7 @@ export function Badge({
 
   return (
     <span
-      className={cn(
-        "rounded-full px-3 py-1 text-xs font-semibold",
-        tones[tone],
-        className
-      )}
+      className={cn("rounded-full px-3 py-1 text-xs font-semibold", tones[tone], className)}
     >
       {children}
     </span>
@@ -141,14 +127,8 @@ export function StatCard({
   return (
     <Card>
       <div className="text-sm text-text-secondary">{label}</div>
-      <div className="mt-2 text-3xl font-semibold text-text-primary">
-        {value}
-      </div>
-      {subtext ? (
-        <div className="mt-1 text-sm text-text-secondary">
-          {subtext}
-        </div>
-      ) : null}
+      <div className="mt-2 text-3xl font-semibold text-text-primary">{value}</div>
+      {subtext ? <div className="mt-1 text-sm text-text-secondary">{subtext}</div> : null}
     </Card>
   );
 }
@@ -169,24 +149,24 @@ export function Modal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
-      <div className="w-full max-w-2xl rounded-2xl bg-white shadow-soft">
-        <div className="flex items-center justify-between border-b border-border px-6 py-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/50 p-4 pt-8 sm:items-center sm:pt-4">
+      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-soft">
+        <div className="flex items-center justify-between border-b border-border px-4 py-4 sm:px-6">
           <h3 className="text-lg font-semibold">{title}</h3>
           <button
+            type="button"
             onClick={onClose}
             className="rounded-full p-2 hover:bg-[#e9f3ea]"
+            aria-label="Close modal"
           >
-            ✕
+            x
           </button>
         </div>
 
-        <div className="max-h-[75vh] overflow-y-auto px-6 py-5">
-          {children}
-        </div>
+        <div className="max-h-[75vh] overflow-y-auto px-4 py-5 sm:px-6">{children}</div>
 
         {footer ? (
-          <div className="flex items-center justify-end gap-3 border-t border-border px-6 py-4">
+          <div className="flex flex-col-reverse items-stretch justify-end gap-3 border-t border-border px-4 py-4 sm:flex-row sm:items-center sm:px-6">
             {footer}
           </div>
         ) : null}
@@ -205,11 +185,7 @@ export function EmptyState({
   return (
     <Card className="text-center">
       <div className="text-lg font-semibold">{title}</div>
-      {description ? (
-        <p className="mt-2 text-sm text-text-secondary">
-          {description}
-        </p>
-      ) : null}
+      {description ? <p className="mt-2 text-sm text-text-secondary">{description}</p> : null}
     </Card>
   );
 }

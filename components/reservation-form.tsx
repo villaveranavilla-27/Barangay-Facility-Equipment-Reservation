@@ -92,37 +92,41 @@ function TimeField({
 }) {
   return (
     <div>
-      <label className="mb-1 block text-[20px] font-medium">{label}</label>
-      <div className="grid grid-cols-[1fr_auto_1fr_120px] items-center gap-3">
-        <Input
-          type="number"
-          min="1"
-          max="12"
-          value={hour}
-          onChange={(e) => onHourChange(e.target.value)}
-          placeholder="HH"
-          required
-        />
+      <label className="mb-1 block text-base font-medium sm:text-lg">{label}</label>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="grid min-w-0 flex-1 grid-cols-[1fr_auto_1fr] items-center gap-3">
+          <Input
+            type="number"
+            min="1"
+            max="12"
+            value={hour}
+            onChange={(e) => onHourChange(e.target.value)}
+            placeholder="HH"
+            required
+          />
 
-        <span className="text-xl font-semibold text-slate-600">:</span>
+          <span className="text-center text-xl font-semibold text-slate-600">:</span>
 
-        <Input
-          type="number"
-          min="0"
-          max="59"
-          value={minute}
-          onChange={(e) => onMinuteChange(e.target.value)}
-          placeholder="MM"
-          required
-        />
+          <Input
+            type="number"
+            min="0"
+            max="59"
+            value={minute}
+            onChange={(e) => onMinuteChange(e.target.value)}
+            placeholder="MM"
+            required
+          />
+        </div>
 
-        <Select
-          value={period}
-          onChange={(e) => onPeriodChange(e.target.value as "AM" | "PM")}
-        >
-          <option value="AM">AM</option>
-          <option value="PM">PM</option>
-        </Select>
+        <div className="sm:w-[120px]">
+          <Select
+            value={period}
+            onChange={(e) => onPeriodChange(e.target.value as "AM" | "PM")}
+          >
+            <option value="AM">AM</option>
+            <option value="PM">PM</option>
+          </Select>
+        </div>
       </div>
     </div>
   );
@@ -428,7 +432,7 @@ export function ReservationForm({ userId }: { userId: number }) {
     <Card className="mx-auto max-w-6xl">
       <form className="space-y-4" onSubmit={submit}>
         <div>
-          <label className="mb-1 block text-[20px] font-medium">Item Type</label>
+          <label className="mb-1 block text-base font-medium sm:text-lg">Item Type</label>
           <Select
             value={form.itemType}
             onChange={(e) =>
@@ -454,7 +458,7 @@ export function ReservationForm({ userId }: { userId: number }) {
         </div>
 
         <div>
-          <label className="mb-1 block text-[20px] font-medium">Select Item</label>
+          <label className="mb-1 block text-base font-medium sm:text-lg">Select Item</label>
           <Select
             value={form.itemType === "FACILITY" ? form.facilityId : form.equipmentId}
             onChange={(e) =>
@@ -506,7 +510,7 @@ export function ReservationForm({ userId }: { userId: number }) {
 
         {isFacility ? (
           <div>
-            <label className="mb-1 block text-[20px] font-medium">
+            <label className="mb-1 block text-base font-medium sm:text-lg">
               Expected Attendees
             </label>
             <Input
@@ -522,7 +526,7 @@ export function ReservationForm({ userId }: { userId: number }) {
 
         {isEquipment ? (
           <div>
-            <label className="mb-1 block text-[20px] font-medium">Quantity</label>
+            <label className="mb-1 block text-base font-medium sm:text-lg">Quantity</label>
             <Input
               type="number"
               min="1"
@@ -548,7 +552,7 @@ export function ReservationForm({ userId }: { userId: number }) {
 
         <div className="grid gap-4 md:grid-cols-2">
           <div>
-            <label className="mb-1 block text-[20px] font-medium">Start Date</label>
+            <label className="mb-1 block text-base font-medium sm:text-lg">Start Date</label>
             <Input
               type="date"
               value={form.startDate}
@@ -557,7 +561,7 @@ export function ReservationForm({ userId }: { userId: number }) {
             />
           </div>
           <div>
-            <label className="mb-1 block text-[20px] font-medium">End Date</label>
+            <label className="mb-1 block text-base font-medium sm:text-lg">End Date</label>
             <Input
               type="date"
               value={form.endDate}
@@ -604,7 +608,7 @@ export function ReservationForm({ userId }: { userId: number }) {
         ) : null}
 
         <div>
-          <label className="mb-1 block text-[20px] font-medium">Purpose</label>
+          <label className="mb-1 block text-base font-medium sm:text-lg">Purpose</label>
           <Textarea
             rows={3}
             value={form.purpose}
@@ -613,7 +617,7 @@ export function ReservationForm({ userId }: { userId: number }) {
           />
         </div>
 
-        <Button type="submit" disabled={isSubmitting}>
+        <Button type="submit" className="w-full sm:w-auto" disabled={isSubmitting}>
           {isSubmitting ? "Submitting..." : "Submit Reservation"}
         </Button>
       </form>

@@ -22,6 +22,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+  overflow-x: hidden;
   overflow-y: auto;
 }
 
@@ -194,6 +195,50 @@ table {
 
 .calendar-dashboard .fc .fc-scroller-liquid-absolute {
   overflow: hidden auto;
+}
+
+@media (max-width: 767px) {
+  .calendar-dashboard .fc .fc-col-header-cell-cushion {
+    padding: 0.75rem 0.25rem;
+    font-size: 0.75rem;
+  }
+
+  .calendar-dashboard .fc .fc-daygrid-day-frame {
+    min-height: 6.5rem;
+    padding: 0.25rem 0.3rem 0.45rem;
+  }
+
+  .calendar-dashboard .fc .fc-daygrid-day-top {
+    padding: 0.1rem 0.1rem 0.35rem;
+  }
+
+  .calendar-dashboard .fc .fc-daygrid-day-number {
+    font-size: 0.8rem;
+  }
+
+  .calendar-dashboard .fc .fc-daygrid-event-harness {
+    margin-top: 0.25rem;
+  }
+
+  .calendar-event-pill {
+    min-height: 2.25rem;
+    border-radius: 0.75rem;
+    padding: 0.38rem 0.5rem;
+  }
+
+  .calendar-event-pill__title {
+    display: -webkit-box;
+    overflow: hidden;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    white-space: normal;
+    font-size: 0.68rem;
+  }
+
+  .calendar-event-pill__time {
+    margin-top: 0.16rem;
+    font-size: 0.62rem;
+  }
 }
 
 /* Optional: use only if your layout wraps content in this class */
