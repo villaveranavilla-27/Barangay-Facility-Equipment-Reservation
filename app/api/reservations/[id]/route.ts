@@ -297,20 +297,40 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       }
     );
 
+    let mailWarning: string | null = null;
+    const message =
+      parsed.data.status === "RETURNED"
+        ? "Equipment marked as returned."
+        : `Reservation ${parsed.data.status.toLowerCase()}.`;
+
     if (parsed.data.status !== "RETURNED") {
-      const message =
+      const emailMessage =
         parsed.data.status === ReservationStatus.APPROVED
           ? buildUserReservationApprovedEmail(reservation)
           : buildUserReservationDeniedEmail(reservation);
 
-      await sendEmail({
+      const mailResult = await sendEmail({
         to: reservation.user.email,
-        subject: message.subject,
-        html: message.html,
+        subject: emailMessage.subject,
+        html: emailMessage.html,
       });
+
+      if (!mailResult.ok) {
+        mailWarning = `Reservation ${parsed.data.status.toLowerCase()}, but the resident email notification failed. ${mailResult.error}`;
+
+        console.error(`[/api/reservations/${params.id}] PATCH`, {
+          warning: mailWarning,
+          reservationId: reservation.reservationId,
+          recipient: reservation.user.email,
+        });
+      }
     }
 
-    return NextResponse.json(serializeReservation(reservation));
+    return NextResponse.json({
+      ...serializeReservation(reservation),
+      message,
+      mailWarning,
+    });
   } catch (error) {
     return handleApiRouteError(
       error,

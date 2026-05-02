@@ -15,15 +15,15 @@ export async function GET(request: Request) {
     );
   }
 
-  const sent = await sendEmail({
+  const result = await sendEmail({
     to: recipient,
     subject: "Barangay GO Email Test",
     html: "<p>This is a live email test from Barangay GO.</p>",
   });
 
-  if (!sent) {
+  if (!result.ok) {
     return NextResponse.json(
-      { error: "Email could not be sent. Check the configured mail transport." },
+      { error: result.error },
       { status: 500 }
     );
   }

@@ -32,6 +32,7 @@
     "bcryptjs": "^2.4.3",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "dotenv": "^17.4.2",
     "lucide-react": "^0.511.0",
     "next": "^14.2.30",
     "next-auth": "^4.24.14",
@@ -40,11 +41,13 @@
     "react-dom": "^18.3.1",
     "react-hook-form": "^7.56.4",
     "react-hot-toast": "^2.5.2",
-    "zod": "^3.25.67",
-    "tsx": "^4.21.0"
+    "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
+    "zod": "^3.25.67"
   },
   "devDependencies": {
     "@types/node": "^22.15.3",
+    "@types/nodemailer": "^8.0.0",
     "@types/react": "^18.3.22",
     "@types/react-dom": "^18.3.7",
     "autoprefixer": "^10.4.21",

@@ -318,7 +318,14 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
           adminNotes: adminNotes || undefined,
         }),
       });
-      const data = await readJson<ReservationRow & { error?: string; details?: Record<string, string[]> }>(res);
+      const data = await readJson<
+        ReservationRow & {
+          error?: string;
+          details?: Record<string, string[]>;
+          message?: string;
+          mailWarning?: string | null;
+        }
+      >(res);
 
       if (!res.ok) {
         const message =
@@ -340,10 +347,15 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
       }
 
       toast.success(
-        action === "RETURNED"
-          ? "Equipment marked as returned"
-          : `Reservation ${action.toLowerCase()}`
+        data?.message ||
+          (action === "RETURNED"
+            ? "Equipment marked as returned"
+            : `Reservation ${action.toLowerCase()}`)
       );
+
+      if (data?.mailWarning) {
+        toast.error(data.mailWarning);
+      }
 
       await load();
     } catch (error) {

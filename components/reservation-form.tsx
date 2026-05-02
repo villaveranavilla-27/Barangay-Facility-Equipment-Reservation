@@ -389,6 +389,7 @@ export function ReservationForm({ userId }: { userId: number }) {
       const { response, data } = await fetchJson<{
         error?: string;
         message?: string;
+        mailWarning?: string | null;
       }>("/api/reservations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -419,6 +420,9 @@ export function ReservationForm({ userId }: { userId: number }) {
       }
 
       toast.success(data?.message || "Reservation submitted");
+      if (data?.mailWarning) {
+        toast.error(data.mailWarning);
+      }
       router.push("/user/reservations");
       router.refresh();
     } catch {

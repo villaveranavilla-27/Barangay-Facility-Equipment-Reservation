@@ -174,6 +174,8 @@ export async function POST(request: Request) {
       }
     }
 
+    let mailWarning: string | null = null;
+
     if (!duplicateSubmission) {
       const adminRecipients = await prisma.admin.findMany({
         where: { isActive: true },
@@ -199,7 +201,7 @@ export async function POST(request: Request) {
 
       if (uniqueAdminEmails.length > 0) {
         const message = buildAdminReservationRequestEmail(reservation);
-        await Promise.all(
+        const results = await Promise.all(
           uniqueAdminEmails.map((email) =>
             sendEmail({
               to: email,
@@ -208,6 +210,21 @@ export async function POST(request: Request) {
             })
           )
         );
+
+        const failedResults = results.filter(
+          (result): result is { ok: false; error: string } => !result.ok
+        );
+
+        if (failedResults.length > 0) {
+          mailWarning = `Reservation submitted, but ${failedResults.length} admin email notification${
+            failedResults.length === 1 ? "" : "s"
+          } failed. Check the server logs and mail environment variables.`;
+
+          console.error("[/api/reservations] POST", {
+            warning: mailWarning,
+            errors: failedResults.map((result) => result.error),
+          });
+        }
       }
     }
 
@@ -217,6 +234,7 @@ export async function POST(request: Request) {
       message: duplicateSubmission
         ? "This reservation was already submitted."
         : "Reservation submitted.",
+      mailWarning,
       ...serializeReservation(reservation),
     });
   } catch (error) {

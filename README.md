@@ -57,5 +57,6 @@ User:
 ## Notes
 
 - Passwords are stored as short demo hashes because the provided Prisma schema keeps the password columns at `VARCHAR(50)`.
-- Email delivery uses Nodemailer and can be pointed to Ethereal SMTP for local testing.
+- Email delivery uses Gmail SMTP with these server-side variables: `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, and `EMAIL_FROM`.
+- Use the same mail variable names in local `.env`, Vercel, and Railway so deployments match local behavior.
 - The app uses route handlers in the App Router for CRUD operations and PDF generation.
