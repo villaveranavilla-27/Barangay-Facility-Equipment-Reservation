@@ -386,6 +386,14 @@ export function ReservationForm({ userId }: { userId: number }) {
     setIsSubmitting(true);
 
     try {
+      console.info("[reservation-form] submitting reservation request", {
+        itemType: form.itemType,
+        facilityId: form.facilityId || null,
+        equipmentId: form.equipmentId || null,
+        startDateTime,
+        endDateTime,
+      });
+
       const { response, data } = await fetchJson<{
         error?: string;
         message?: string;
@@ -412,6 +420,13 @@ export function ReservationForm({ userId }: { userId: number }) {
         }),
       });
 
+      console.info("[reservation-form] reservation API responded", {
+        ok: response.ok,
+        status: response.status,
+        message: data?.message ?? null,
+        mailWarning: data?.mailWarning ?? null,
+      });
+
       if (!response.ok) {
         submissionLockRef.current = false;
         setIsSubmitting(false);
@@ -423,11 +438,14 @@ export function ReservationForm({ userId }: { userId: number }) {
       if (data?.mailWarning) {
         toast.error(data.mailWarning);
       }
-      router.push("/user/reservations");
-      router.refresh();
-    } catch {
       submissionLockRef.current = false;
       setIsSubmitting(false);
+      router.push("/user/reservations");
+      router.refresh();
+    } catch (error) {
+      submissionLockRef.current = false;
+      setIsSubmitting(false);
+      console.error("[reservation-form] reservation submission failed", error);
       toast.error("Reservation failed");
     }
   }

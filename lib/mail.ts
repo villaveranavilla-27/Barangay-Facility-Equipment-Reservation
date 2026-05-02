@@ -4,15 +4,22 @@ type SendEmailInput = {
   to: string | string[];
   subject: string;
   html: string;
+  replyTo?: string | null;
+  logLabel?: string;
 };
 
 type SendEmailResult =
   | {
       ok: true;
+      recipients: string[];
+      accepted: string[];
+      rejected: string[];
+      messageId?: string;
     }
   | {
       ok: false;
       error: string;
+      recipients: string[];
     };
 
 type MailConfig = {
@@ -129,6 +136,16 @@ function extractEmailAddress(value?: string | null) {
   return (match?.[1] || trimmed).trim() || null;
 }
 
+function normalizeEmailList(value: unknown) {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => String(item).trim())
+    .filter(Boolean);
+}
+
 function getMailConfig(): MailConfigResult {
   if (getTrimmedEnvValue("EMAIL_SECURE")) {
     warnLegacyEnvUsage("EMAIL_SECURE", "remove it and use EMAIL_PORT=587");
@@ -229,32 +246,96 @@ export async function sendEmail({
   to,
   subject,
   html,
+  replyTo,
+  logLabel,
 }: SendEmailInput): Promise<SendEmailResult> {
   const recipients = (Array.isArray(to) ? to : [to])
     .map((value) => value.trim())
     .filter(Boolean);
+  const normalizedReplyTo = extractEmailAddress(replyTo);
 
   if (recipients.length === 0) {
     const error = "Missing recipient email.";
-    console.error("[mail skipped]", subject, error);
-    return { ok: false, error };
+    console.error("[mail skipped]", { logLabel, subject, error });
+    return { ok: false, error, recipients };
   }
 
   const configResult = getMailConfig();
   if (!configResult.ok) {
-    console.error("[mail config invalid]", subject, configResult.error);
-    return configResult;
+    console.error("[mail config invalid]", {
+      logLabel,
+      subject,
+      recipients,
+      error: configResult.error,
+    });
+    return {
+      ok: false,
+      error: configResult.error,
+      recipients,
+    };
   }
 
   try {
-    await getTransporter(configResult.config).sendMail({
+    console.info("[mail send start]", {
+      logLabel,
+      subject,
+      recipients,
+      replyTo: normalizedReplyTo ?? null,
+      from: configResult.config.from,
+      host: configResult.config.host,
+      port: configResult.config.port,
+    });
+
+    const info = await getTransporter(configResult.config).sendMail({
       from: configResult.config.from,
       to: recipients.join(", "),
+      replyTo: normalizedReplyTo || undefined,
       subject,
       html,
     });
 
-    return { ok: true };
+    const accepted = normalizeEmailList(info.accepted);
+    const rejected = normalizeEmailList(info.rejected);
+
+    if (accepted.length === 0 || rejected.length > 0) {
+      const error =
+        rejected.length > 0
+          ? `Email delivery was rejected for: ${rejected.join(", ")}`
+          : "Email delivery did not report any accepted recipients.";
+
+      console.error("[mail send partial failure]", {
+        logLabel,
+        subject,
+        recipients,
+        accepted,
+        rejected,
+        messageId: info.messageId,
+        error,
+      });
+
+      return {
+        ok: false,
+        error,
+        recipients,
+      };
+    }
+
+    console.info("[mail sent]", {
+      logLabel,
+      subject,
+      recipients,
+      accepted,
+      rejected,
+      messageId: info.messageId,
+    });
+
+    return {
+      ok: true,
+      recipients,
+      accepted,
+      rejected,
+      messageId: info.messageId,
+    };
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown mail transport error.";
 
@@ -270,6 +351,7 @@ export async function sendEmail({
     return {
       ok: false,
       error: `Email delivery failed: ${message}`,
+      recipients,
     };
   }
 }

@@ -195,7 +195,7 @@ function emailLayout({
           </div>
         </div>
         <p style="margin:16px 8px 0;color:#5f6f78;font-size:13px;line-height:1.6;">
-          This is an automated message. For questions about this reservation, please contact the barangay administration office.
+          You can reply directly to this email to continue the conversation about this reservation.
         </p>
       </div>
     </body>

@@ -134,6 +134,12 @@ export async function PATCH(request: Request, { params }: { params: { id: string
 
     const reservationId = parseRouteParamId(params.id, "reservation id");
 
+    console.info(`[/api/reservations/${params.id}] PATCH received`, {
+      reservationId,
+      adminId,
+      action: parsed.data.status,
+    });
+
     const reservation = await prisma.$transaction(
       async (tx) => {
         const existing = await getReservationById(tx, reservationId);
@@ -297,6 +303,13 @@ export async function PATCH(request: Request, { params }: { params: { id: string
       }
     );
 
+    console.info(`[/api/reservations/${params.id}] reservation updated successfully`, {
+      reservationId: reservation.reservationId,
+      status: reservation.status,
+      residentEmail: reservation.user.email,
+      adminId,
+    });
+
     let mailWarning: string | null = null;
     const message =
       parsed.data.status === "RETURNED"
@@ -304,24 +317,54 @@ export async function PATCH(request: Request, { params }: { params: { id: string
         : `Reservation ${parsed.data.status.toLowerCase()}.`;
 
     if (parsed.data.status !== "RETURNED") {
-      const emailMessage =
-        parsed.data.status === ReservationStatus.APPROVED
-          ? buildUserReservationApprovedEmail(reservation)
-          : buildUserReservationDeniedEmail(reservation);
+      try {
+        const emailMessage =
+          parsed.data.status === ReservationStatus.APPROVED
+            ? buildUserReservationApprovedEmail(reservation)
+            : buildUserReservationDeniedEmail(reservation);
 
-      const mailResult = await sendEmail({
-        to: reservation.user.email,
-        subject: emailMessage.subject,
-        html: emailMessage.html,
-      });
+        console.info(`[/api/reservations/${params.id}] calling resident email notification`, {
+          reservationId: reservation.reservationId,
+          recipient: reservation.user.email,
+          source: "Reservation.user.email",
+        });
 
-      if (!mailResult.ok) {
-        mailWarning = `Reservation ${parsed.data.status.toLowerCase()}, but the resident email notification failed. ${mailResult.error}`;
+        const mailResult = await sendEmail({
+          to: reservation.user.email,
+          subject: emailMessage.subject,
+          html: emailMessage.html,
+          logLabel: `reservation:${reservation.reservationId}:resident-${parsed.data.status.toLowerCase()}`,
+        });
 
-        console.error(`[/api/reservations/${params.id}] PATCH`, {
+        if (!mailResult.ok) {
+          mailWarning = `Reservation ${parsed.data.status.toLowerCase()}, but the resident email notification failed. ${mailResult.error}`;
+
+          console.error(`[/api/reservations/${params.id}] resident notification failure`, {
+            warning: mailWarning,
+            reservationId: reservation.reservationId,
+            recipient: reservation.user.email,
+          });
+        } else {
+          console.info(`[/api/reservations/${params.id}] resident notification sent`, {
+            reservationId: reservation.reservationId,
+            recipient: reservation.user.email,
+            accepted: mailResult.accepted,
+            messageId: mailResult.messageId ?? null,
+          });
+        }
+      } catch (error) {
+        const failureMessage =
+          error instanceof Error ? error.message : "Unknown resident notification error.";
+
+        mailWarning =
+          `Reservation ${parsed.data.status.toLowerCase()}, but the resident notification flow failed. Check the server logs.`;
+
+        console.error(`[/api/reservations/${params.id}] resident notification exception`, {
           warning: mailWarning,
           reservationId: reservation.reservationId,
           recipient: reservation.user.email,
+          error,
+          message: failureMessage,
         });
       }
     }

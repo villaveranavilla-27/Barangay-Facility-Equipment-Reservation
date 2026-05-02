@@ -88,6 +88,17 @@ export async function POST(request: Request) {
     const data = parsed.data;
     const startDateTime = new Date(data.startDateTime);
     const endDateTime = new Date(data.endDateTime);
+    const requestedItemId =
+      data.itemType === "FACILITY" ? Number(data.facilityId) : Number(data.equipmentId);
+
+    console.info("[/api/reservations] POST received", {
+      userId: Number(session.user.id),
+      itemType: data.itemType,
+      requestedItemId,
+      startDateTime: startDateTime.toISOString(),
+      endDateTime: endDateTime.toISOString(),
+    });
+
     const reservationLookup = {
       userId: Number(session.user.id),
       facilityId: data.itemType === "FACILITY" ? Number(data.facilityId) : null,
@@ -150,6 +161,13 @@ export async function POST(request: Request) {
         },
         include: reservationInclude,
       });
+
+      console.info("[/api/reservations] reservation created successfully", {
+        reservationId: reservation.reservationId,
+        userId: reservation.user.userId,
+        userEmail: reservation.user.email,
+        itemType: data.itemType,
+      });
     } catch (error) {
       if (!isReservationDuplicateError(error)) {
         throw error;
@@ -172,59 +190,116 @@ export async function POST(request: Request) {
           { status: 200 }
         );
       }
+
+      console.info("[/api/reservations] duplicate reservation detected", {
+        userId: Number(session.user.id),
+        reservationId: reservation.reservationId,
+      });
     }
 
     let mailWarning: string | null = null;
 
     if (!duplicateSubmission) {
-      const adminRecipients = await prisma.admin.findMany({
-        where: { isActive: true },
-        select: { email: true },
-      });
-
-      const seenEmails = new Set<string>();
-      const uniqueAdminEmails = adminRecipients
-        .map((admin) => admin.email.trim())
-        .filter((email) => {
-          if (!email) {
-            return false;
-          }
-
-          const normalizedEmail = email.toLowerCase();
-          if (seenEmails.has(normalizedEmail)) {
-            return false;
-          }
-
-          seenEmails.add(normalizedEmail);
-          return true;
+      try {
+        const adminRecipients = await prisma.admin.findMany({
+          where: { isActive: true },
+          select: { email: true },
         });
 
-      if (uniqueAdminEmails.length > 0) {
-        const message = buildAdminReservationRequestEmail(reservation);
-        const results = await Promise.all(
-          uniqueAdminEmails.map((email) =>
-            sendEmail({
-              to: email,
-              subject: message.subject,
-              html: message.html,
-            })
-          )
-        );
+        const seenEmails = new Set<string>();
+        const uniqueAdminEmails = adminRecipients
+          .map((admin) => admin.email.trim())
+          .filter((email) => {
+            if (!email) {
+              return false;
+            }
 
-        const failedResults = results.filter(
-          (result): result is { ok: false; error: string } => !result.ok
-        );
+            const normalizedEmail = email.toLowerCase();
+            if (seenEmails.has(normalizedEmail)) {
+              return false;
+            }
 
-        if (failedResults.length > 0) {
-          mailWarning = `Reservation submitted, but ${failedResults.length} admin email notification${
-            failedResults.length === 1 ? "" : "s"
-          } failed. Check the server logs and mail environment variables.`;
-
-          console.error("[/api/reservations] POST", {
-            warning: mailWarning,
-            errors: failedResults.map((result) => result.error),
+            seenEmails.add(normalizedEmail);
+            return true;
           });
+
+        console.info("[/api/reservations] admin recipient lookup complete", {
+          reservationId: reservation.reservationId,
+          source: "Admin.email",
+          recipientCount: uniqueAdminEmails.length,
+          recipients: uniqueAdminEmails,
+        });
+
+        if (uniqueAdminEmails.length === 0) {
+          mailWarning =
+            "Reservation submitted, but no active admin email recipients were found.";
+
+          console.error("[/api/reservations] admin notification skipped", {
+            reservationId: reservation.reservationId,
+            warning: mailWarning,
+          });
+        } else {
+          const message = buildAdminReservationRequestEmail(reservation);
+
+          console.info("[/api/reservations] calling admin email notification", {
+            reservationId: reservation.reservationId,
+            recipients: uniqueAdminEmails,
+            replyTo: reservation.user.email,
+          });
+
+          const results = await Promise.allSettled(
+            uniqueAdminEmails.map((email) =>
+              sendEmail({
+                to: email,
+                subject: message.subject,
+                html: message.html,
+                replyTo: reservation.user.email,
+                logLabel: `reservation:${reservation.reservationId}:admin-notification`,
+              })
+            )
+          );
+
+          const failedResults = results.flatMap((result) => {
+            if (result.status === "rejected") {
+              const reason =
+                result.reason instanceof Error ? result.reason.message : String(result.reason);
+
+              return [{ error: reason }];
+            }
+
+            return result.value.ok ? [] : [{ error: result.value.error }];
+          });
+
+          if (failedResults.length > 0) {
+            mailWarning = `Reservation submitted, but ${failedResults.length} admin email notification${
+              failedResults.length === 1 ? "" : "s"
+            } failed. Check the server logs and mail environment variables.`;
+
+            console.error("[/api/reservations] admin notification failures", {
+              reservationId: reservation.reservationId,
+              warning: mailWarning,
+              errors: failedResults.map((result) => result.error),
+            });
+          } else {
+            console.info("[/api/reservations] admin notifications sent", {
+              reservationId: reservation.reservationId,
+              recipientCount: uniqueAdminEmails.length,
+            });
+          }
         }
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "Unknown admin notification error.";
+
+        mailWarning =
+          "Reservation submitted, but the admin notification flow failed. Check the server logs.";
+
+        console.error("[/api/reservations] admin notification exception", {
+          reservationId: reservation.reservationId,
+          warning: mailWarning,
+          error,
+          message,
+        });
       }
     }
 

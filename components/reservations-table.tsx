@@ -310,6 +310,12 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
     setPending({ action, reservationId: reservation.reservationId });
 
     try {
+      console.info("[reservations-table] submitting reservation action", {
+        reservationId: reservation.reservationId,
+        action,
+        adminNotes: adminNotes ?? null,
+      });
+
       const res = await fetch(`/api/reservations/${reservation.reservationId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -326,6 +332,15 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
           mailWarning?: string | null;
         }
       >(res);
+
+      console.info("[reservations-table] reservation action response", {
+        reservationId: reservation.reservationId,
+        action,
+        ok: res.ok,
+        status: res.status,
+        message: data?.message ?? null,
+        mailWarning: data?.mailWarning ?? null,
+      });
 
       if (!res.ok) {
         const message =
@@ -359,6 +374,11 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
 
       await load();
     } catch (error) {
+      console.error("[reservations-table] reservation action failed", {
+        reservationId: reservation.reservationId,
+        action,
+        error,
+      });
       toast.error(error instanceof Error ? error.message : "Action failed");
     } finally {
       setPending(null);
