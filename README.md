@@ -1,6 +1,6 @@
-# Barangay Facility and Equipment Management System
+## Barangay Facility and Equipment Management System
 
-A full-stack barangay reservation system built with Next.js App Router, TypeScript, Tailwind CSS, Prisma, MySQL, server-side database-backed sessions, Nodemailer, FullCalendar, and @react-pdf/renderer.
+A full-stack barangay reservation system built with Next.js App Router, TypeScript, Tailwind CSS, Prisma, MySQL, server-side database-backend sessions, Nodemailer, FullCalendar, and @react-pdf/renderer.
 
 ## Features
 
@@ -47,12 +47,12 @@ A full-stack barangay reservation system built with Next.js App Router, TypeScri
 ## Default Demo Credentials
 
 Admin:
-- Email: `admin@example.com`
-- Password: `admin123`
+- Email: `anavilla.villaver@bisu.edu.ph`
+- Password: `villa.2706`
 
 User:
-- Email: `user@example.com`
-- Password: `user123`
+- Email: `villaveranavilla@gmail.com`
+- Password: `villa.2706`
 
 ## Notes
 
