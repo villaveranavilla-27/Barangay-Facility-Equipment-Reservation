@@ -7,10 +7,9 @@ import {
   jsonMethodNotAllowed,
   readJsonBody,
 } from "@/lib/api-route";
+import { schedulePendingReservationAdminNotification } from "@/lib/admin-booking-notifications";
 import { prisma } from "@/lib/prisma";
 import { reservationSchema } from "@/lib/schemas";
-import { sendEmail } from "@/lib/mail";
-import { buildAdminReservationRequestEmail } from "@/lib/reservation-emails";
 import { serializeReservation } from "@/lib/reservations";
 import { requireRouteSession } from "@/lib/session";
 
@@ -194,110 +193,10 @@ export async function POST(request: Request) {
       });
     }
 
-    let mailWarning: string | null = null;
+    const mailWarning: string | null = null;
 
-    if (!duplicateSubmission) {
-      try {
-        const adminRecipients = await prisma.admin.findMany({
-          where: { isActive: true },
-          select: { email: true },
-        });
-
-        const seenEmails = new Set<string>();
-        const uniqueAdminEmails = adminRecipients
-          .map((admin) => admin.email.trim())
-          .filter((email) => {
-            if (!email) {
-              return false;
-            }
-
-            const normalizedEmail = email.toLowerCase();
-            if (seenEmails.has(normalizedEmail)) {
-              return false;
-            }
-
-            seenEmails.add(normalizedEmail);
-            return true;
-          });
-
-        console.info("[/api/reservations] admin recipient lookup complete", {
-          reservationId: reservation.reservationId,
-          source: "Admin.email",
-          recipientCount: uniqueAdminEmails.length,
-          recipients: uniqueAdminEmails,
-        });
-
-        if (uniqueAdminEmails.length === 0) {
-          mailWarning =
-            "Reservation submitted, but no active admin email recipients were found.";
-
-          console.error("[/api/reservations] admin notification skipped", {
-            reservationId: reservation.reservationId,
-            warning: mailWarning,
-          });
-        } else {
-          const message = buildAdminReservationRequestEmail(reservation);
-
-          console.info("[/api/reservations] calling admin email notification", {
-            reservationId: reservation.reservationId,
-            recipients: uniqueAdminEmails,
-            replyTo: reservation.user.email,
-          });
-
-          const results = await Promise.allSettled(
-            uniqueAdminEmails.map((email) =>
-              sendEmail({
-                to: email,
-                subject: message.subject,
-                html: message.html,
-                replyTo: reservation.user.email,
-                logLabel: `reservation:${reservation.reservationId}:admin-notification`,
-              })
-            )
-          );
-
-          const failedResults = results.flatMap((result) => {
-            if (result.status === "rejected") {
-              const reason =
-                result.reason instanceof Error ? result.reason.message : String(result.reason);
-
-              return [{ error: reason }];
-            }
-
-            return result.value.ok ? [] : [{ error: result.value.error }];
-          });
-
-          if (failedResults.length > 0) {
-            mailWarning = `Reservation submitted, but ${failedResults.length} admin email notification${
-              failedResults.length === 1 ? "" : "s"
-            } failed. Check the server logs and mail environment variables.`;
-
-            console.error("[/api/reservations] admin notification failures", {
-              reservationId: reservation.reservationId,
-              warning: mailWarning,
-              errors: failedResults.map((result) => result.error),
-            });
-          } else {
-            console.info("[/api/reservations] admin notifications sent", {
-              reservationId: reservation.reservationId,
-              recipientCount: uniqueAdminEmails.length,
-            });
-          }
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error ? error.message : "Unknown admin notification error.";
-
-        mailWarning =
-          "Reservation submitted, but the admin notification flow failed. Check the server logs.";
-
-        console.error("[/api/reservations] admin notification exception", {
-          reservationId: reservation.reservationId,
-          warning: mailWarning,
-          error,
-          message,
-        });
-      }
+    if (!duplicateSubmission && reservation.status === "PENDING") {
+      schedulePendingReservationAdminNotification(reservation);
     }
 
     return NextResponse.json({

@@ -4,5 +4,5 @@
     "module": "commonjs",
     "moduleResolution": "node"
   },
-  "include": ["tests/**/*.ts", "lib/**/*.ts"]
+  "include": ["tests/**/*.ts", "lib/**/*.ts", "types/**/*.d.ts"]
 }

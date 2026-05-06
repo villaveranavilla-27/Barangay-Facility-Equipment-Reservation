@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
+    "test:admin-booking-notifications": "ts-node --project tsconfig.test.json --transpile-only tests/admin-booking-notifications.test.ts",
     "test:session": "ts-node --project tsconfig.test.json --transpile-only tests/session.test.ts",
     "lint": "next lint",
     "seed": "tsx prisma/seed.ts",

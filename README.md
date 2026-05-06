@@ -61,5 +61,7 @@ User:
 - Sessions expire after 10 minutes of inactivity or 30 minutes from login, whichever happens first.
 - Optional hardening flags are available through `SESSION_BIND_USER_AGENT` and `SESSION_BIND_IP`. Both default to `false` to avoid false logouts on mobile or proxied networks.
 - Email delivery uses Gmail SMTP with these server-side variables: `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_USER`, `EMAIL_PASS`, and `EMAIL_FROM`.
+- New pending reservations can notify the admin inbox configured in `ADMIN_BOOKING_NOTIFICATION_EMAIL`, or fall back to `EMAIL_USER` when the override is blank.
+- Set `ENABLE_ADMIN_BOOKING_NOTIFICATIONS=false` to turn pending-reservation admin emails off without changing the user reservation flow.
 - Use the same mail variable names in local `.env`, Vercel, and Railway so deployments match local behavior.
 - The app uses route handlers in the App Router for CRUD operations and PDF generation.

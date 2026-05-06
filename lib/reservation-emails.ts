@@ -1,5 +1,5 @@
 import { getAppUrl } from "@/lib/app-url";
-import { fmtDateTime, money } from "@/lib/utils";
+import { fmtDate, fmtDateTime, money } from "@/lib/utils";
 import {
   getReservationItemName,
   getReservationItemPrice,
@@ -203,15 +203,21 @@ function emailLayout({
 }
 
 export function buildAdminReservationRequestEmail(reservation: ReservationEmailContext) {
+  const itemName = getReservationItemName(reservation);
+  const reservationDate = fmtDate(reservation.startDateTime);
+
   return {
-    subject: "New Reservation Request",
+    subject: `New Reservation Request \u2013 ${itemName} on ${reservationDate}`,
     html: emailLayout({
       variant: "admin",
       preheader: "A new reservation request is waiting for admin review.",
       title: "New Reservation Request",
-      intro: `${reservation.user.name} submitted a reservation request that is awaiting review. Please check the reservation details below and update the request status in the admin portal.`,
+      intro: `${reservation.user.name} (${reservation.user.email}) submitted a pending reservation request for ${itemName}. Please review the details below and update the request in the admin portal.`,
       reservation: { ...reservation, status: reservation.status ?? "PENDING" },
-      highlight: "A new reservation request is waiting for review.",
+      highlight: `Requested schedule: ${fmtDateTime(
+        reservation.startDateTime
+      )} to ${fmtDateTime(reservation.endDateTime)}.`,
+      highlightTitle: "Pending review",
       actionLabel: "Review Reservation",
       actionUrl: getAppUrl("/admin/reservations"),
     }),
