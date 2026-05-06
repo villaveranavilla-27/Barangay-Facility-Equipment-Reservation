@@ -58,9 +58,9 @@ export default function UserDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="app-page__header">
-        <h1 className="app-page__title">Dashboard</h1>
-        <p className="app-page__description">
+      <div>
+        <h1 className="text-2xl font-semibold sm:text-3xl">Dashboard</h1>
+        <p className="mt-1 text-text-secondary">
           Welcome back. Manage your barangay requests here.
         </p>
       </div>

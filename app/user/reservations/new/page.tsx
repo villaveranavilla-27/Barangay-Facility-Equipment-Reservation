@@ -17,11 +17,9 @@ export default function NewReservationPage() {
 
   return (
     <div className="space-y-6">
-      <div className="app-page__header">
-        <h1 className="app-page__title">Make a Reservation</h1>
-        <p className="app-page__description">
-          Select an item, choose a schedule, and submit your request.
-        </p>
+      <div>
+        <h1 className="text-2xl font-semibold sm:text-3xl">Make a Reservation</h1>
+        <p className="mt-1 text-text-secondary">Select an item, choose a schedule, and submit your request.</p>
       </div>
       <ReservationForm userId={userId} />
     </div>

@@ -4,37 +4,31 @@ import { AuthForm } from "@/components/auth-form";
 
 export default function RegisterPage() {
   return (
-    <main className="auth-shell">
-      <section className="auth-card">
-        <div className="auth-card__logo">
+    <main className="flex min-h-dvh items-start justify-center bg-gray-50 px-4 py-6 sm:px-6 sm:py-10 lg:items-center lg:py-12">
+      <div className="w-full max-w-[680px] rounded-2xl bg-white px-4 py-5 shadow-md sm:px-6 sm:py-6">
+        <div className="mb-3 flex flex-col items-center">
           <Image
             src="/logo.png"
             alt="Barangay Go Logo"
             width={200}
             height={70}
-            className="h-auto w-36 object-contain sm:w-48"
+            className="h-auto w-40 object-contain sm:w-52"
             priority
           />
         </div>
 
-        <div className="app-page__header">
-          <h1 className="auth-card__title">Create Resident Account</h1>
-          <p className="auth-card__description">
-            Register once to request barangay facilities, track approvals, and manage
-            your profile from any device.
-          </p>
-        </div>
+        <h2 className="mb-3 border-b-2 border-green-700 pb-1 text-left text-xl font-bold text-green-700">
+          CREATE ACCOUNT
+        </h2>
 
-        <div className="mt-6">
-          <AuthForm mode="register" />
-        </div>
+        <AuthForm mode="register" />
 
-        <div className="mt-6 text-right text-sm text-text-secondary">
-          <Link href="/login" className="font-semibold text-brand-600 transition hover:text-brand-500">
+        <div className="mt-3 text-right text-sm text-green-700">
+          <Link href="/login" className="font-medium hover:underline">
             Back to User Login
           </Link>
         </div>
-      </section>
+      </div>
     </main>
   );
 }

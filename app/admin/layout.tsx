@@ -6,11 +6,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   await requirePageSession("ADMIN");
 
   return (
-    <div className="app-shell bg-[var(--bg)]">
+    <div className="flex min-h-dvh bg-[var(--bg)]">
       <ProtectedSessionGuard />
       <Sidebar role="admin" />
-      <main className="app-shell__content overflow-x-hidden">
-        <div className="app-page">{children}</div>
+      <main className="w-full flex-1 overflow-x-hidden px-4 pb-6 pt-[calc(var(--mobile-shell-header-height)+1rem)] sm:px-6 sm:pb-8 sm:pt-[calc(var(--mobile-shell-header-height)+1.5rem)] lg:ml-[var(--sidebar-width)] lg:px-8 lg:pb-8 lg:pt-8">
+        {children}
       </main>
     </div>
   );

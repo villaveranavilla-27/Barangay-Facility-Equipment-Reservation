@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
-import { Button, Card, Input, Select, Skeleton, Textarea } from "@/components/common";
+import { Button, Card, Input, Select, Textarea } from "@/components/common";
 
 const genderOptions = ["Male", "Female", "Other", "Prefer not to say"] as const;
 
@@ -30,26 +30,13 @@ export function ProfileForm() {
     else toast.error("Update failed");
   }
 
-  if (!form) {
-    return (
-      <Card>
-        <div className="space-y-4">
-          <Skeleton className="h-12 w-full" />
-          <div className="grid gap-4 md:grid-cols-2">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-          </div>
-          <Skeleton className="h-32 w-full" />
-        </div>
-      </Card>
-    );
-  }
+  if (!form) return <Card>Loading...</Card>;
 
   return (
-    <Card className="max-w-5xl">
-      <form className="space-y-5" onSubmit={save}>
-        <div className="field-stack">
-          <label className="field-label">Full Name</label>
+    <Card className="max-w-[1300px]">
+      <form className="space-y-4" onSubmit={save}>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Full Name</label>
           <Input
             value={form.name || ""}
             minLength={2}
@@ -59,8 +46,8 @@ export function ProfileForm() {
           />
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="field-stack">
-            <label className="field-label">Email</label>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Email</label>
             <Input
               type="email"
               maxLength={191}
@@ -69,8 +56,8 @@ export function ProfileForm() {
               onChange={(e) => setForm({ ...form, email: e.target.value })}
             />
           </div>
-          <div className="field-stack">
-            <label className="field-label">Contact Number</label>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Contact Number</label>
             <Input
               type="tel"
               inputMode="numeric"
@@ -89,8 +76,8 @@ export function ProfileForm() {
           </div>
         </div>
         <div className="grid gap-4 md:grid-cols-2">
-          <div className="field-stack">
-            <label className="field-label">Gender</label>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Gender</label>
             <Select
               value={form.gender || "Male"}
               onChange={(e) => setForm({ ...form, gender: e.target.value })}
@@ -102,8 +89,8 @@ export function ProfileForm() {
               ))}
             </Select>
           </div>
-          <div className="field-stack">
-            <label className="field-label">Birthdate</label>
+          <div>
+            <label className="mb-1 block text-sm font-medium">Birthdate</label>
             <Input
               type="date"
               max={new Date().toISOString().slice(0, 10)}
@@ -112,18 +99,17 @@ export function ProfileForm() {
             />
           </div>
         </div>
-        <div className="field-stack">
-          <label className="field-label">Address</label>
+        <div>
+          <label className="mb-1 block text-sm font-medium">Address</label>
           <Textarea
             rows={3}
-            className="min-h-[108px]"
             maxLength={191}
             value={form.address || ""}
             onChange={(e) => setForm({ ...form, address: e.target.value })}
           />
         </div>
-        <div className="field-stack">
-          <label className="field-label">New Password (optional)</label>
+        <div>
+          <label className="mb-1 block text-sm font-medium">New Password (optional)</label>
           <Input
             type="password"
             minLength={4}
@@ -133,9 +119,7 @@ export function ProfileForm() {
             onChange={(e) => setForm({ ...form, password: e.target.value })}
           />
         </div>
-        <Button type="submit" className="w-full sm:w-auto">
-          Save Changes
-        </Button>
+        <Button type="submit">Save Changes</Button>
       </form>
     </Card>
   );

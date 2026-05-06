@@ -98,9 +98,9 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="app-page__header">
-        <h1 className="app-page__title">Admin Dashboard</h1>
-        <p className="app-page__description">
+      <div>
+        <h1 className="text-2xl font-semibold sm:text-3xl">Admin Dashboard</h1>
+        <p className="mt-1 text-text-secondary">
           Monitor reservations and manage barangay resources.
         </p>
       </div>
