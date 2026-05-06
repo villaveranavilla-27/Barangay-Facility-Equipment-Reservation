@@ -4,10 +4,10 @@ import { ReservationsTable } from "@/components/reservations-table";
 
 export default function AdminReservationsPage() {
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold sm:text-3xl">Reservations</h1>
-        <p className="mt-1 text-text-secondary">
+    <div className="space-y-6">
+      <div className="app-page__header">
+        <h1 className="app-page__title">Reservations</h1>
+        <p className="app-page__description">
           Approve, deny, review, and mark borrowed equipment as returned.
         </p>
       </div>

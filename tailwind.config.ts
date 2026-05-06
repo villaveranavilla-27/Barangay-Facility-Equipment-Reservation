@@ -10,23 +10,23 @@ const config: Config = {
     extend: {
       colors: {
         brand: {
-          50: "#ECFDF5",
-          500: "#16A34A",
-          600: "#15803D"
+          50: "#E8F3EB",
+          500: "#1F6A3A",
+          600: "#174F2B"
         },
-        appbg: "#E2E8F0",
+        appbg: "#EEF4F0",
         text: {
-          primary: "#1F2937",
-          secondary: "#6B7280"
+          primary: "#14281D",
+          secondary: "#4D6356"
         },
-        border: "#D1D5DB",
-        danger: "#DC2626"
+        border: "#D5E1D8",
+        danger: "#C2412D"
       },
       boxShadow: {
-        soft: "0 12px 30px rgba(15, 23, 42, 0.08)"
+        soft: "0 18px 42px rgba(15, 23, 42, 0.1)"
       },
       borderRadius: {
-        "2xl": "1rem"
+        "2xl": "1.25rem"
       }
     }
   },

@@ -10,6 +10,7 @@ import {
   Card,
   Input,
   Modal,
+  Skeleton,
 } from "@/components/common";
 
 type UserRecord = {
@@ -223,9 +224,9 @@ export function UsersDirectory() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <Card>
-        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+        <div className="toolbar-card">
           <Input
             placeholder="Search users"
             value={query}
@@ -236,7 +237,11 @@ export function UsersDirectory() {
 
       {loading ? (
         <Card>
-          <p className="text-sm text-text-secondary">Loading users...</p>
+          <div className="space-y-3">
+            <Skeleton className="h-12 w-full" />
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-28 w-full" />
+          </div>
         </Card>
       ) : (
         <>
@@ -312,17 +317,18 @@ export function UsersDirectory() {
             })}
           </div>
 
-          <Card className="hidden overflow-x-auto md:block">
-            <table className="min-w-full text-left">
+          <Card className="hidden overflow-hidden p-0 md:block">
+            <div className="data-table-wrap scrollbar-subtle">
+              <table className="data-table min-w-[920px] text-left">
               <thead>
-                <tr className="border-b border-border text-sm text-text-secondary">
-                  <th className="py-3 pr-4">Full Name</th>
-                  <th className="py-3 pr-4">Username</th>
-                  <th className="py-3 pr-4">Email</th>
-                  <th className="py-3 pr-4">Contact</th>
-                  <th className="py-3 pr-4">Status</th>
-                  <th className="py-3 pr-4">Role</th>
-                  <th className="py-3">Actions</th>
+                <tr>
+                  <th>Full Name</th>
+                  <th>Username</th>
+                  <th>Email</th>
+                  <th>Contact</th>
+                  <th>Status</th>
+                  <th>Role</th>
+                  <th>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -333,17 +339,17 @@ export function UsersDirectory() {
                     user.isActive && currentAdminUsername === user.username;
 
                   return (
-                    <tr key={user.userId} className="border-b border-border">
-                      <td className="py-3 pr-4">{user.name}</td>
-                      <td className="py-3 pr-4">{user.username}</td>
-                      <td className="py-3 pr-4">{user.email}</td>
-                      <td className="py-3 pr-4">{user.contactNumber}</td>
-                      <td className="py-3 pr-4">
+                    <tr key={user.userId}>
+                      <td>{user.name}</td>
+                      <td>{user.username}</td>
+                      <td>{user.email}</td>
+                      <td>{user.contactNumber}</td>
+                      <td>
                         <Badge tone={user.isActive ? "green" : "red"}>
                           {user.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </td>
-                      <td className="py-3 pr-4">
+                      <td>
                         <Badge tone={linkedAdmin ? "blue" : "neutral"}>
                           {linkedAdmin
                             ? linkedAdmin.role === "CORE_ADMIN"
@@ -352,7 +358,7 @@ export function UsersDirectory() {
                             : "User"}
                         </Badge>
                       </td>
-                      <td className="py-3">
+                      <td>
                         <div className="flex flex-wrap items-center gap-2">
                           <Button
                             variant={user.isActive ? "danger" : "secondary"}
@@ -386,7 +392,8 @@ export function UsersDirectory() {
                   );
                 })}
               </tbody>
-            </table>
+              </table>
+            </div>
           </Card>
         </>
       )}
@@ -412,9 +419,12 @@ export function UsersDirectory() {
           ) : null}
         </div>
 
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
           {admins.map((admin) => (
-            <div key={admin.adminId} className="rounded-xl border border-border p-4">
+            <div
+              key={admin.adminId}
+              className="flex h-full flex-col rounded-[var(--radius-lg)] border border-border bg-[var(--surface-muted)] p-4"
+            >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
                   <div className="font-medium">{admin.name}</div>
@@ -441,7 +451,7 @@ export function UsersDirectory() {
               </div>
 
               {canManageAdmins ? (
-                <div className="mt-4 flex flex-wrap items-center gap-3">
+                <div className="mt-auto flex flex-wrap items-center gap-3 pt-4">
                   {admin.canBeRemoved ? (
                     <Button
                       variant="danger"

@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type Variant = "primary" | "secondary" | "ghost" | "danger";
@@ -11,7 +12,12 @@ export function Card({
   children,
 }: React.PropsWithChildren<{ className?: string }>) {
   return (
-    <div className={cn("rounded-2xl bg-white p-4 shadow-soft sm:p-6", className)}>
+    <div
+      className={cn(
+        "min-w-0 rounded-[var(--radius-lg)] border border-border bg-white/95 p-4 shadow-soft backdrop-blur sm:p-6",
+        className
+      )}
+    >
       {children}
     </div>
   );
@@ -28,13 +34,17 @@ export function Button({
   href?: string;
 }) {
   const base =
-    "inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium leading-5 transition disabled:pointer-events-none disabled:opacity-50 sm:text-base";
+    "inline-flex min-h-11 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-sm)] border px-4 py-2.5 text-[0.95rem] font-semibold leading-5 transition duration-200 ease-out disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50";
 
   const styles: Record<Variant, string> = {
-    primary: "bg-[#165719] text-white hover:bg-[#134d15]",
-    secondary: "bg-[#e9f3ea] text-[#165719] hover:bg-[#d8eadb]",
-    ghost: "bg-transparent text-[#165719] hover:bg-[#e9f3ea]",
-    danger: "bg-red-600 text-white hover:opacity-90",
+    primary:
+      "border-brand-500 bg-brand-500 text-white shadow-[0_12px_24px_rgba(31,106,58,0.18)] hover:border-brand-600 hover:bg-brand-600 active:translate-y-px",
+    secondary:
+      "border-border bg-brand-50 text-brand-600 hover:border-brand-500/30 hover:bg-[#dcecdf] active:translate-y-px",
+    ghost:
+      "border-transparent bg-transparent text-text-primary hover:bg-slate-900/5 active:translate-y-px",
+    danger:
+      "border-danger bg-danger text-white shadow-[0_12px_24px_rgba(194,65,45,0.18)] hover:bg-[#a73624] hover:border-[#a73624] active:translate-y-px",
   };
 
   const classes = cn(base, styles[variant], className);
@@ -59,7 +69,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...props}
       className={cn(
-        "min-h-11 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-[#165719] sm:text-base",
+        "min-h-12 w-full rounded-[var(--radius-sm)] border border-border bg-white px-4 py-3 text-base text-text-primary shadow-[inset_0_1px_2px_rgba(15,23,42,0.03)] outline-none transition duration-200 placeholder:text-text-secondary/70 hover:border-[#b8c8bc] focus:border-brand-500 focus:ring-4 focus:ring-[var(--focus-ring)]",
         props.className
       )}
     />
@@ -71,7 +81,7 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
     <select
       {...props}
       className={cn(
-        "min-h-11 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-[#165719] sm:text-base",
+        "min-h-12 w-full rounded-[var(--radius-sm)] border border-border bg-white px-4 py-3 text-base text-text-primary shadow-[inset_0_1px_2px_rgba(15,23,42,0.03)] outline-none transition duration-200 hover:border-[#b8c8bc] focus:border-brand-500 focus:ring-4 focus:ring-[var(--focus-ring)]",
         props.className
       )}
     />
@@ -83,7 +93,7 @@ export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement
     <textarea
       {...props}
       className={cn(
-        "w-full rounded-lg border border-border bg-white px-3 py-2 outline-none transition focus:ring-2 focus:ring-[#165719]",
+        "min-h-[120px] w-full rounded-[var(--radius-sm)] border border-border bg-white px-4 py-3 text-base text-text-primary shadow-[inset_0_1px_2px_rgba(15,23,42,0.03)] outline-none transition duration-200 placeholder:text-text-secondary/70 hover:border-[#b8c8bc] focus:border-brand-500 focus:ring-4 focus:ring-[var(--focus-ring)]",
         props.className
       )}
     />
@@ -99,16 +109,20 @@ export function Badge({
   className?: string;
 }>) {
   const tones: Record<string, string> = {
-    neutral: "bg-slate-100 text-slate-700",
-    yellow: "bg-amber-100 text-amber-700",
-    green: "bg-emerald-100 text-emerald-700",
-    red: "bg-red-100 text-red-700",
-    blue: "bg-blue-100 text-blue-700",
+    neutral: "border-slate-200 bg-slate-100 text-slate-700",
+    yellow: "border-[rgba(183,121,31,0.16)] bg-[var(--warning-soft)] text-[var(--warning)]",
+    green: "border-[rgba(31,139,76,0.16)] bg-[var(--success-soft)] text-[var(--success)]",
+    red: "border-[rgba(194,65,45,0.16)] bg-[var(--danger-soft)] text-[var(--danger)]",
+    blue: "border-[rgba(31,91,143,0.16)] bg-[var(--info-soft)] text-[var(--info)]",
   };
 
   return (
     <span
-      className={cn("rounded-full px-3 py-1 text-xs font-semibold", tones[tone], className)}
+      className={cn(
+        "inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold tracking-[0.02em]",
+        tones[tone],
+        className
+      )}
     >
       {children}
     </span>
@@ -125,12 +139,24 @@ export function StatCard({
   subtext?: string;
 }) {
   return (
-    <Card>
-      <div className="text-sm text-text-secondary">{label}</div>
-      <div className="mt-2 text-3xl font-semibold text-text-primary">{value}</div>
-      {subtext ? <div className="mt-1 text-sm text-text-secondary">{subtext}</div> : null}
+    <Card className="h-full">
+      <div className="flex h-full flex-col gap-3">
+        <div className="text-sm font-medium uppercase tracking-[0.08em] text-text-secondary">
+          {label}
+        </div>
+        <div className="text-3xl font-bold tracking-[-0.04em] text-text-primary">{value}</div>
+        {subtext ? <div className="text-sm text-text-secondary">{subtext}</div> : null}
+      </div>
     </Card>
   );
+}
+
+export function Skeleton({
+  className,
+}: {
+  className?: string;
+}) {
+  return <div className={cn("skeleton", className)} aria-hidden="true" />;
 }
 
 export function Modal({
@@ -149,24 +175,39 @@ export function Modal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start justify-center bg-slate-900/50 p-4 pt-8 sm:items-center sm:pt-4">
-      <div className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-white shadow-soft">
-        <div className="flex items-center justify-between border-b border-border px-4 py-4 sm:px-6">
-          <h3 className="text-lg font-semibold">{title}</h3>
+    <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center p-4">
+      <button
+        type="button"
+        className="absolute inset-0 z-[var(--z-overlay)] bg-slate-950/55 backdrop-blur-sm"
+        aria-label="Close modal backdrop"
+        onClick={onClose}
+      />
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        className="relative z-[61] flex max-h-[min(92dvh,880px)] w-full max-w-3xl flex-col overflow-hidden rounded-[var(--radius-xl)] border border-border bg-white shadow-[0_26px_80px_rgba(15,23,42,0.24)]"
+      >
+        <div className="flex items-start justify-between gap-4 border-b border-border px-5 py-4 sm:px-6">
+          <div className="min-w-0">
+            <h3 className="text-xl font-semibold tracking-[-0.03em] text-text-primary">{title}</h3>
+          </div>
           <button
             type="button"
             onClick={onClose}
-            className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-[#e9f3ea]"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-[var(--radius-sm)] border border-transparent text-text-secondary transition duration-200 hover:border-border hover:bg-slate-900/5 hover:text-text-primary"
             aria-label="Close modal"
           >
-            x
+            <X className="h-5 w-5" />
           </button>
         </div>
 
-        <div className="max-h-[75vh] overflow-y-auto px-4 py-5 sm:px-6">{children}</div>
+        <div className="scrollbar-subtle min-h-0 flex-1 overflow-y-auto px-5 py-5 sm:px-6">
+          {children}
+        </div>
 
         {footer ? (
-          <div className="flex flex-col-reverse items-stretch justify-end gap-3 border-t border-border px-4 py-4 sm:flex-row sm:items-center sm:px-6">
+          <div className="flex flex-col-reverse gap-3 border-t border-border bg-[var(--surface-muted)] px-5 py-4 sm:flex-row sm:items-center sm:justify-end sm:px-6">
             {footer}
           </div>
         ) : null}
@@ -184,8 +225,12 @@ export function EmptyState({
 }) {
   return (
     <Card className="text-center">
-      <div className="text-lg font-semibold">{title}</div>
-      {description ? <p className="mt-2 text-sm text-text-secondary">{description}</p> : null}
+      <div className="flex flex-col items-center gap-3 py-3">
+        <div className="text-xl font-semibold tracking-[-0.03em] text-text-primary">{title}</div>
+        {description ? (
+          <p className="max-w-xl text-sm leading-6 text-text-secondary">{description}</p>
+        ) : null}
+      </div>
     </Card>
   );
 }

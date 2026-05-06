@@ -10,6 +10,7 @@ import {
   EmptyState,
   Input,
   Modal,
+  Skeleton,
   Textarea,
 } from "@/components/common";
 import {
@@ -148,12 +149,12 @@ function ReservationActions({
   const isRowPending = pending?.reservationId === reservation.reservationId;
   const isTableLayout = layout === "table";
   const actionGroupClasses = isTableLayout
-    ? "flex min-w-[11rem] flex-col items-stretch gap-2"
+    ? "flex min-w-[12rem] flex-col items-stretch gap-2"
     : "grid gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap";
   const actionButtonClasses = isTableLayout ? "w-full" : "w-full sm:w-auto";
   const linkButtonClasses = isTableLayout
-    ? "inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#e9f3ea] px-4 py-2.5 text-sm font-medium text-[#165719] transition hover:bg-[#d8eadb] sm:text-base"
-    : "inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#e9f3ea] px-4 py-2.5 text-sm font-medium text-[#165719] transition hover:bg-[#d8eadb] sm:w-auto sm:text-base";
+    ? "inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-sm)] border border-border bg-brand-50 px-4 py-2.5 text-[0.95rem] font-semibold text-brand-600 transition duration-200 hover:border-brand-500/30 hover:bg-[#dcecdf]"
+    : "inline-flex min-h-11 w-full items-center justify-center rounded-[var(--radius-sm)] border border-border bg-brand-50 px-4 py-2.5 text-[0.95rem] font-semibold text-brand-600 transition duration-200 hover:border-brand-500/30 hover:bg-[#dcecdf] sm:w-auto";
 
   return (
     <div className={actionGroupClasses}>
@@ -485,9 +486,9 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
     pending?.reservationId === cancelling?.reservationId && pending?.action === "CANCELLED";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <Card>
-        <div className="flex flex-col gap-4">
+        <div className="toolbar-card">
           <Input
             className="w-full sm:max-w-md"
             placeholder="Search reservations"
@@ -542,7 +543,11 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
 
       {loading ? (
         <Card>
-          <p className="text-sm text-text-secondary">Loading reservations...</p>
+          <div className="space-y-3">
+            <Skeleton className="h-12 w-full sm:max-w-md" />
+            <Skeleton className="h-28 w-full" />
+            <Skeleton className="h-28 w-full" />
+          </div>
         </Card>
       ) : filtered.length === 0 ? (
         <EmptyState
@@ -556,7 +561,7 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
               const displayStatus = getDisplayStatus(row, mode);
 
               return (
-                <Card key={row.reservationId} className="p-4">
+                <Card key={row.reservationId} className="overflow-hidden">
                   <div className="space-y-4">
                     <div className="flex flex-wrap items-start justify-between gap-3">
                       <div>
@@ -572,7 +577,7 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
                       </Badge>
                     </div>
 
-                    <div className="grid gap-3 text-sm text-text-secondary">
+                    <div className="grid gap-3 text-sm leading-6 text-text-secondary">
                       {mode === "admin" ? (
                         <p>
                           <strong className="text-text-primary">Resident:</strong>{" "}
@@ -612,17 +617,17 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
             })}
           </div>
 
-          <Card className="hidden overflow-hidden md:block">
-            <div className="overflow-x-auto">
-              <table className="min-w-[960px] table-fixed text-left">
+          <Card className="hidden overflow-hidden p-0 md:block">
+            <div className="data-table-wrap scrollbar-subtle">
+              <table className="data-table min-w-[960px] table-fixed text-left">
                 <thead>
-                  <tr className="border-b border-border text-sm text-text-secondary">
-                    <th className="w-28 py-3 pr-4">Reservation ID</th>
-                    <th className="w-44 py-3 pr-4">Name</th>
-                    <th className="w-48 py-3 pr-4">Facility/Equipment</th>
-                    <th className="w-64 py-3 pr-4">Date & Time</th>
-                    <th className="w-32 py-3 pr-4">Status</th>
-                    <th className="w-56 py-3 pr-4">Action</th>
+                  <tr>
+                    <th className="w-28">Reservation ID</th>
+                    <th className="w-44">Name</th>
+                    <th className="w-48">Facility/Equipment</th>
+                    <th className="w-64">Date &amp; Time</th>
+                    <th className="w-32">Status</th>
+                    <th className="w-56">Action</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -630,19 +635,19 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
                     const displayStatus = getDisplayStatus(row, mode);
 
                     return (
-                      <tr key={row.reservationId} className="border-b border-border align-top">
-                        <td className="py-3 pr-4">{row.reservationId}</td>
-                        <td className="py-3 pr-4">{row.residentName}</td>
-                        <td className="py-3 pr-4">{row.itemName}</td>
-                        <td className="py-3 pr-4 whitespace-normal leading-6">
+                      <tr key={row.reservationId} className="align-top">
+                        <td>{row.reservationId}</td>
+                        <td>{row.residentName}</td>
+                        <td>{row.itemName}</td>
+                        <td className="whitespace-normal">
                           {fmtDateTime(row.startDateTime)} - {fmtDateTime(row.endDateTime)}
                         </td>
-                        <td className="py-3 pr-4">
+                        <td>
                           <Badge tone={statusTone(displayStatus)}>
                             {formatStatus(displayStatus)}
                           </Badge>
                         </td>
-                        <td className="py-3 pr-4">
+                        <td>
                           <ReservationActions
                             mode={mode}
                             reservation={row}
@@ -673,7 +678,7 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
 
       <Modal open={!!view} title="Reservation Details" onClose={() => setView(null)}>
         {view ? (
-          <div className="grid gap-3 text-sm sm:grid-cols-2">
+          <div className="grid gap-3 text-sm leading-6 sm:grid-cols-2">
             <p className="break-words">
               <strong>ID:</strong> {view.reservationId}
             </p>
@@ -851,7 +856,9 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
       >
         {decision?.action === "DENIED" ? (
           <div className="space-y-4">
-            <p>Please provide a clear reason that will be included in the resident email.</p>
+            <p className="field-helper">
+              Please provide a clear reason that will be included in the resident email.
+            </p>
             <Textarea
               rows={4}
               placeholder="Enter the reason for denying this reservation"
@@ -859,13 +866,13 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
               onChange={(e) => setNotes(e.target.value)}
             />
             {!trimmedNotes ? (
-              <p className="text-sm text-red-600">
+              <p className="field-error">
                 A denial reason is required before this request can be denied.
               </p>
             ) : null}
           </div>
         ) : (
-          <div className="space-y-2 text-sm text-text-secondary">
+          <div className="space-y-2 text-sm leading-6 text-text-secondary">
             <p>
               Approving this request will notify the resident by email and include the
               full reservation details.

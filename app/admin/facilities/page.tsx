@@ -15,12 +15,10 @@ export default function AdminFacilitiesPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
-    <div className="mx-auto max-w-6xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-[-0.03em] text-[#11233d] sm:text-[2.35rem]">
-          Facility & Equipment
-        </h1>
-        <p className="mt-2 text-base font-medium text-[#6b7280]">
+    <div className="space-y-6">
+      <div className="app-page__header">
+        <h1 className="app-page__title">Facility &amp; Equipment</h1>
+        <p className="app-page__description">
           Manage your barangay facilities and equipment using the same catalog
           experience residents see.
         </p>
