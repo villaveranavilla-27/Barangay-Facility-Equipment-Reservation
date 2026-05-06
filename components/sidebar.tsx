@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { signOut } from "next-auth/react";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -19,6 +18,7 @@ import {
 import { useState } from "react";
 import { Button, Modal } from "@/components/common";
 import { cn } from "@/lib/utils";
+import toast from "react-hot-toast";
 
 type Role = "user" | "admin";
 
@@ -52,8 +52,8 @@ export function Sidebar({ role }: { role: Role }) {
 
   return (
     <>
-      <div className="fixed inset-x-0 top-0 z-40 border-b border-white/10 bg-[#165719] px-4 py-4 text-white shadow-soft lg:hidden">
-        <div className="flex items-center justify-between gap-3">
+      <div className="app-shell__mobile-header fixed inset-x-0 top-0 z-40 border-b border-white/10 bg-[#165719] px-4 py-4 text-white shadow-soft lg:hidden">
+        <div className="flex min-h-[var(--mobile-shell-header-height)] items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="text-base font-bold">Barangay GO</div>
             <div className="text-xs font-semibold tracking-[0.18em] text-yellow-500/80">
@@ -83,11 +83,11 @@ export function Sidebar({ role }: { role: Role }) {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex h-screen w-72 max-w-[85vw] flex-col bg-[#165719] shadow-soft transition-transform duration-200 lg:translate-x-0",
+          "app-shell__sidebar fixed inset-y-0 left-0 z-50 flex h-dvh w-[var(--sidebar-width)] max-w-[85vw] flex-col overflow-hidden bg-[#165719] shadow-soft transition-transform duration-200 lg:translate-x-0",
           navOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         )}
       >
-        <div className="flex items-center justify-between border-b border-border px-6 py-6">
+        <div className="flex items-center justify-between border-b border-white/10 px-6 py-6">
           <div className="text-center lg:w-full">
             <div className="text-lg font-bold text-white">Barangay GO</div>
             <div className="mt-1 text-sm font-semibold text-yellow-500/80">
@@ -98,7 +98,7 @@ export function Sidebar({ role }: { role: Role }) {
           <button
             type="button"
             onClick={() => setNavOpen(false)}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-white transition hover:bg-white/15 lg:hidden"
+            className="app-shell__sidebar-close inline-flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/10 text-white transition hover:bg-white/15 lg:hidden"
             aria-label="Close navigation"
           >
             <X className="h-5 w-5" />
@@ -116,8 +116,8 @@ export function Sidebar({ role }: { role: Role }) {
                 href={item.href}
                 onClick={() => setNavOpen(false)}
                 className={cn(
-                  "flex items-center gap-3 rounded-xl px-3 py-3 text-base font-medium transition lg:text-lg",
-                  active ? "bg-brand-50 text-gray" : "text-white hover:bg-brand-30"
+                  "flex min-h-11 items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium leading-snug transition sm:text-base lg:text-lg",
+                  active ? "bg-brand-50 text-[#11233d] shadow-sm" : "text-white hover:bg-white/10"
                 )}
               >
                 <Icon className="h-5 w-5 shrink-0" />
@@ -127,7 +127,7 @@ export function Sidebar({ role }: { role: Role }) {
           })}
         </nav>
 
-        <div className="mt-auto border-t border-border px-6 py-4">
+        <div className="mt-auto border-t border-white/10 px-6 py-4">
           <Button
             variant="ghost"
             className="w-full justify-start text-left text-white hover:bg-red-50"
@@ -151,8 +151,24 @@ export function Sidebar({ role }: { role: Role }) {
             <Button
               variant="danger"
               onClick={async () => {
-                await signOut({ redirect: false });
-                window.location.replace(role === "admin" ? "/admin-login" : "/login");
+                try {
+                  const response = await fetch("/api/auth/logout", {
+                    method: "POST",
+                  });
+
+                  if (!response.ok) {
+                    const data = await response.json().catch(() => null);
+                    throw new Error(data?.error || "Logout failed");
+                  }
+
+                  window.location.replace(
+                    role === "admin" ? "/admin-login" : "/login"
+                  );
+                } catch (error) {
+                  const message =
+                    error instanceof Error ? error.message : "Logout failed";
+                  toast.error(message);
+                }
               }}
             >
               Confirm

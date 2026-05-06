@@ -1,9 +1,7 @@
 import { AdminRole, Role } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { isActiveAdmin } from "@/lib/access";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireRouteSession, revokeSessionsForIdentity } from "@/lib/session";
 
 class PromoteAdminError extends Error {
   constructor(
@@ -17,10 +15,9 @@ class PromoteAdminError extends Error {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id || !isActiveAdmin(session.user)) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    const auth = await requireRouteSession(request, "ADMIN");
+    if (!auth.ok) {
+      return auth.response;
     }
 
     const body = await request.json();
@@ -30,7 +27,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Invalid userId" }, { status: 400 });
     }
 
-    const actorAdminId = Number(session.user.id);
+    const actorAdminId = Number(auth.session.user.id);
 
     const result = await prisma.$transaction(async (tx) => {
       const currentAdmin = await tx.admin.findUnique({
@@ -137,7 +134,17 @@ export async function POST(request: Request) {
         data: { role: Role.ADMIN },
       });
 
-      return admin;
+      return {
+        admin,
+        targetUserId: targetUser.userId,
+        targetUsername: targetUser.username,
+      };
+    });
+
+    await revokeSessionsForIdentity({
+      username: result.targetUsername,
+      userId: result.targetUserId,
+      adminId: result.admin.adminId,
     });
 
     console.info(
@@ -145,12 +152,12 @@ export async function POST(request: Request) {
         event: "admin_promoted",
         actorAdminId,
         targetUserId: userId,
-        targetAdminId: result.adminId,
+        targetAdminId: result.admin.adminId,
         occurredAt: new Date().toISOString(),
       })
     );
 
-    return NextResponse.json({ success: true, admin: result });
+    return NextResponse.json({ success: true, admin: result.admin });
   } catch (error) {
     if (error instanceof PromoteAdminError) {
       return NextResponse.json({ error: error.message }, { status: error.status });

@@ -1,6 +1,5 @@
 import { EquipmentReturnStatus, ReservationStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import {
   ApiRouteError,
   handleApiRouteError,
@@ -8,12 +7,12 @@ import {
   jsonMethodNotAllowed,
   parseRouteParamId,
 } from "@/lib/api-route";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
   getReservationCancellationErrorMessage,
   serializeReservation,
 } from "@/lib/reservations";
+import { requireRouteSession } from "@/lib/session";
 
 const reservationInclude = {
   user: {
@@ -49,11 +48,11 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions);
-
-    if (!session?.user?.id) {
-      return jsonError("Unauthorized", 401);
+    const auth = await requireRouteSession(_request, "USER");
+    if (!auth.ok) {
+      return auth.response;
     }
+    const session = auth.session;
 
     if (session.user.role !== "USER") {
       return jsonError("Only residents can cancel reservations", 403);

@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { isActiveAdmin } from "@/lib/access";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { facilitySchema } from "@/lib/schemas";
+import { requireRouteSession } from "@/lib/session";
 
 export async function GET() {
   const facilities = await prisma.facility.findMany({ orderBy: { facilityId: "desc" } });
@@ -11,12 +9,12 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!isActiveAdmin(session?.user)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireRouteSession(request, "ADMIN");
+  if (!auth.ok) {
+    return auth.response;
   }
 
-  const adminId = Number(session?.user?.id);
+  const adminId = Number(auth.session.user.id);
 
   const parsed = facilitySchema.safeParse(await request.json());
   if (!parsed.success) return NextResponse.json({ error: "Invalid data" }, { status: 400 });

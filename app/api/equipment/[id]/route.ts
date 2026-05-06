@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { isActiveAdmin } from "@/lib/access";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { equipmentSchema } from "@/lib/schemas";
+import { requireRouteSession } from "@/lib/session";
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!isActiveAdmin(session?.user)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireRouteSession(request, "ADMIN");
+  if (!auth.ok) {
+    return auth.response;
   }
 
   const parsed = equipmentSchema.partial().safeParse(await request.json());
@@ -21,10 +19,10 @@ export async function PATCH(request: Request, { params }: { params: { id: string
   return NextResponse.json(item);
 }
 
-export async function DELETE(_request: Request, { params }: { params: { id: string } }) {
-  const session = await getServerSession(authOptions);
-  if (!isActiveAdmin(session?.user)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+export async function DELETE(request: Request, { params }: { params: { id: string } }) {
+  const auth = await requireRouteSession(request, "ADMIN");
+  if (!auth.ok) {
+    return auth.response;
   }
 
   await prisma.equipment.delete({ where: { equipmentId: Number(params.id) } });

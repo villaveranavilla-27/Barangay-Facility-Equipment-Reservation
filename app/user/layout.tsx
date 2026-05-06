@@ -1,19 +1,15 @@
-import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
 import { ProtectedSessionGuard } from "@/components/protected-session-guard";
 import { Sidebar } from "@/components/sidebar";
-import { isActiveUser } from "@/lib/access";
+import { requirePageSession } from "@/lib/session";
 
 export default async function UserLayout({ children }: { children: React.ReactNode }) {
-  const session = await getServerSession(authOptions);
-  if (!isActiveUser(session?.user)) redirect("/login");
+  await requirePageSession("USER");
 
   return (
-    <div className="flex min-h-screen bg-[var(--bg)]">
+    <div className="app-shell app-shell--user flex min-h-dvh bg-[var(--bg)]">
       <ProtectedSessionGuard />
       <Sidebar role="user" />
-      <main className="w-full flex-1 overflow-x-hidden overflow-y-auto p-4 pt-24 sm:p-6 sm:pt-24 lg:ml-80 lg:p-6 lg:pt-6">
+      <main className="app-shell__main w-full flex-1 overflow-x-hidden px-4 pb-6 pt-[calc(var(--mobile-shell-header-height)+1rem)] sm:px-6 sm:pb-8 sm:pt-[calc(var(--mobile-shell-header-height)+1.5rem)] lg:ml-[var(--sidebar-width)] lg:px-8 lg:pb-8 lg:pt-8">
         {children}
       </main>
     </div>

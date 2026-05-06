@@ -1,23 +1,19 @@
 import { NextResponse } from "next/server";
 import { ReservationStatus } from "@prisma/client";
-import { getServerSession } from "next-auth";
-import { isActiveAdmin, isInactiveAdmin } from "@/lib/access";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { requireRouteSession } from "@/lib/session";
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireRouteSession(request);
+  if (!auth.ok) {
+    return auth.response;
   }
 
-  if (isInactiveAdmin(session.user)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const session = auth.session;
 
   const { searchParams } = new URL(request.url);
   const includeAllReservations =
-    searchParams.get("scope") === "all" && isActiveAdmin(session.user);
+    searchParams.get("scope") === "all" && session.user.role === "ADMIN";
 
   const reservations = await prisma.reservation.findMany({
     where: includeAllReservations

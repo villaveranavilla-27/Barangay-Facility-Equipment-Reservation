@@ -51,6 +51,7 @@ model Admin {
   equipment     Equipment[]
   reservation   Reservation[]
   facility      Facility[]
+  sessions      AppSession[]
 
   @@map("Admin")
 }
@@ -69,6 +70,7 @@ model User {
   isActive      Boolean       @default(true) @map("Is_Active")
   deactivatedAt DateTime?     @map("DeactivatedAt")
   reservation   Reservation[]
+  sessions      AppSession[]
 
   @@map("User")
 }
@@ -130,4 +132,25 @@ model Reservation {
   @@unique([userId, facilityId, startDateTime, endDateTime])
   @@unique([userId, equipmentId, startDateTime, endDateTime])
   @@map("Reservation")
+}
+
+model AppSession {
+  sessionId    String   @id @db.VarChar(191) @map("Session_ID")
+  role         Role     @map("Role")
+  username     String   @db.VarChar(191) @map("Username")
+  userId       Int?     @map("User_ID")
+  adminId      Int?     @map("Admin_ID")
+  createdAt    DateTime @default(now()) @map("CreatedAt")
+  lastActivity DateTime @map("LastActivity")
+  expiresAt    DateTime @map("ExpiresAt")
+  ipAddress    String?  @db.VarChar(191) @map("IP_Address")
+  userAgent    String?  @db.VarChar(191) @map("User_Agent")
+  user         User?    @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: Cascade)
+  admin        Admin?   @relation(fields: [adminId], references: [adminId], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([expiresAt])
+  @@index([username])
+  @@index([role, userId])
+  @@index([role, adminId])
+  @@map("AppSession")
 }

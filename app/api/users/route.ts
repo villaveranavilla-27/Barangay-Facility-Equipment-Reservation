@@ -1,9 +1,7 @@
 import { Prisma, Role } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { ADMIN_ROLE } from "@/lib/admin-roles";
-import { isActiveAdmin, isCoreAdmin, isInactiveAdmin } from "@/lib/access";
-import { authOptions } from "@/lib/auth";
+import { isActiveAdmin, isCoreAdmin } from "@/lib/access";
 import { prisma } from "@/lib/prisma";
 import {
   adminCreateSchema,
@@ -11,6 +9,7 @@ import {
   userAccountStatusSchema,
   userUpdateSchema,
 } from "@/lib/schemas";
+import { requireRouteSession, revokeSessionsForIdentity } from "@/lib/session";
 import { md5 } from "@/lib/utils";
 
 const adminSelect = {
@@ -107,13 +106,18 @@ function isAdminUniqueConstraintError(error: unknown) {
 }
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
+  const auth = await requireRouteSession(request);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  const session = auth.session;
   const { searchParams } = new URL(request.url);
   const kind = searchParams.get("kind");
   const search = searchParams.get("search")?.trim() ?? "";
 
   if (kind === "admins") {
-    if (!isActiveAdmin(session?.user)) {
+    if (!isActiveAdmin(session.user)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -122,7 +126,7 @@ export async function GET(request: Request) {
       select: adminSelect,
     });
 
-    const currentAdminId = Number(session?.user?.id);
+    const currentAdminId = Number(session.user.id);
     const activeAdminCount = admins.filter((admin) => admin.isActive).length;
     const activeCoreAdminCount = admins.filter(
       (admin) => admin.isActive && admin.role === ADMIN_ROLE.CORE_ADMIN
@@ -130,14 +134,14 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       currentAdminId,
-      currentAdminRole: session?.user?.adminRole ?? null,
-      canManageAdmins: isActiveAdmin(session?.user),
-      canPromoteAdmins: isActiveAdmin(session?.user),
+      currentAdminRole: session.user.adminRole ?? null,
+      canManageAdmins: isActiveAdmin(session.user),
+      canPromoteAdmins: isActiveAdmin(session.user),
       admins: admins.map((admin) =>
         serializeAdminDirectoryRecord(
           admin,
           currentAdminId,
-          (session?.user?.adminRole as AdminDirectoryRecord["role"]) ?? ADMIN_ROLE.ADMIN,
+          (session.user.adminRole as AdminDirectoryRecord["role"]) ?? ADMIN_ROLE.ADMIN,
           {
           activeAdminCount,
           activeCoreAdminCount,
@@ -147,7 +151,7 @@ export async function GET(request: Request) {
     });
   }
 
-  if (isActiveAdmin(session?.user)) {
+  if (isActiveAdmin(session.user)) {
     const users = await prisma.user.findMany({
       where: search
         ? {
@@ -201,11 +205,7 @@ export async function GET(request: Request) {
     );
   }
 
-  if (isInactiveAdmin(session?.user)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  if (!session?.user?.id || session.user.role !== "USER" || session.user.userActive === false) {
+  if (session.user.role !== "USER") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -229,15 +229,11 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireRouteSession(request, "ADMIN");
+  if (!auth.ok) {
+    return auth.response;
   }
-
-  if (!isActiveAdmin(session.user)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const session = auth.session;
 
   if (!isCoreAdmin(session.user)) {
     return NextResponse.json(
@@ -367,7 +363,15 @@ export async function POST(request: Request) {
       return {
         admin,
         reactivated: Boolean(existingAdmin),
+        targetUserId: existingUser.userId,
+        targetUsername: existingUser.username,
       };
+    });
+
+    await revokeSessionsForIdentity({
+      username: result.targetUsername,
+      userId: result.targetUserId,
+      adminId: result.admin.adminId,
     });
 
     console.info(
@@ -405,10 +409,15 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  const session = await getServerSession(authOptions);
+  const auth = await requireRouteSession(request);
+  if (!auth.ok) {
+    return auth.response;
+  }
+
+  const session = auth.session;
   const body = await request.json();
 
-  if (isActiveAdmin(session?.user)) {
+  if (isActiveAdmin(session.user)) {
     const parsed = userAccountStatusSchema.safeParse(body);
 
     if (!parsed.success) {
@@ -418,7 +427,7 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const actorAdminId = Number(session?.user?.id);
+    const actorAdminId = Number(session.user.id);
     const now = new Date();
 
     try {
@@ -492,6 +501,13 @@ export async function PATCH(request: Request) {
         };
       });
 
+      if (result.changed) {
+        await revokeSessionsForIdentity({
+          username: result.user.username,
+          userId: result.user.userId,
+        });
+      }
+
       return NextResponse.json({
         ok: true,
         changed: result.changed,
@@ -507,7 +523,7 @@ export async function PATCH(request: Request) {
     }
   }
 
-  if (!session?.user?.id || session.user.role !== "USER" || session.user.userActive === false) {
+  if (session.user.role !== "USER") {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -583,15 +599,11 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireRouteSession(request, "ADMIN");
+  if (!auth.ok) {
+    return auth.response;
   }
-
-  if (!isActiveAdmin(session.user)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+  const session = auth.session;
 
   const parsed = adminRemovalSchema.safeParse(await request.json());
 
@@ -720,6 +732,11 @@ export async function DELETE(request: Request) {
         alreadyRemoved: false,
         message: "Admin access removed successfully.",
       };
+    });
+
+    await revokeSessionsForIdentity({
+      username: result.admin.username,
+      adminId: result.admin.adminId,
     });
 
     console.info(

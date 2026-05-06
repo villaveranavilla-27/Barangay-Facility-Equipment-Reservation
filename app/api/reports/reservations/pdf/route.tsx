@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 import { pdf } from "@react-pdf/renderer";
-import { getServerSession } from "next-auth";
-import { isActiveAdmin } from "@/lib/access";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ReservationsSummaryDoc } from "@/components/pdf/reservations-summary";
+import { requireRouteSession } from "@/lib/session";
 import { fmtDate } from "@/lib/utils";
 
 export async function GET(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!isActiveAdmin(session?.user)) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  const auth = await requireRouteSession(request, "ADMIN");
+  if (!auth.ok) {
+    return auth.response;
   }
 
   const { searchParams } = new URL(request.url);

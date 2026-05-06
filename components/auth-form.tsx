@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { Button, Input, Select, Textarea } from "@/components/common";
 import toast from "react-hot-toast";
 
@@ -91,15 +90,19 @@ export function AuthForm({
         throw new Error("Username and password are required");
       }
 
-      const res = await signIn("credentials", {
-        redirect: false,
-        identifier,
-        password,
-        intendedRole,
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          identifier,
+          password,
+          intendedRole,
+        }),
       });
 
-      if (!res || res.error) {
-        throw new Error("Invalid email/username or password");
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Invalid email/username or password");
       }
 
       toast.success(
@@ -109,7 +112,7 @@ export function AuthForm({
       );
 
       // ✅ FORCE correct route (fixes Vercel redirect issue)
-      router.replace(destination);
+      router.replace(data.destination || destination);
       router.refresh();
     } catch (error) {
       const message =

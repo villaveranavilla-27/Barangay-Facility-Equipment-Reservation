@@ -4,8 +4,8 @@ import { AuthForm } from "@/components/auth-form";
 
 export default function LoginPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-[#f3f3f3] px-4">
-      <div className="w-full max-w-[600px] rounded-3xl bg-white px-6 py-10 shadow-md sm:px-10 sm:py-14 lg:px-16 lg:py-20">
+    <main className="flex min-h-dvh items-start justify-center bg-[#f3f3f3] px-4 py-6 sm:px-6 sm:py-10 lg:items-center lg:py-12">
+      <div className="w-full max-w-[600px] rounded-3xl bg-white px-6 py-8 shadow-md sm:px-10 sm:py-12 lg:px-16 lg:py-16">
         <div className="mb-8 flex flex-col items-center">
           <Image
             src="/logo.png"

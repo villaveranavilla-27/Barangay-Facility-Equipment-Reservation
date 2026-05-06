@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "prisma generate && prisma migrate deploy && next build",
     "start": "next start",
+    "test:session": "ts-node --project tsconfig.test.json --transpile-only tests/session.test.ts",
     "lint": "next lint",
     "seed": "tsx prisma/seed.ts",
     "db:backup": "tsx scripts/backup-database.ts",
@@ -13,6 +14,7 @@
     "db:compare": "tsx scripts/migrate-local-to-production.ts --compare",
     "db:compare-schema": "tsx scripts/compare-schemas.ts",
     "db:migrate:production": "tsx scripts/migrate-local-to-production.ts --apply",
+    "sessions:cleanup": "tsx scripts/cleanup-expired-sessions.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "postinstall": "prisma generate"
@@ -35,7 +37,6 @@
     "dotenv": "^17.4.2",
     "lucide-react": "^0.511.0",
     "next": "^14.2.30",
-    "next-auth": "^4.24.14",
     "nodemailer": "^7.0.13",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",

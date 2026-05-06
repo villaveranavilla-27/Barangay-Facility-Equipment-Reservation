@@ -1,7 +1,5 @@
 import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { isActiveAdmin, isInactiveAdmin } from "@/lib/access";
 import {
   handleApiRouteError,
   isRecord,
@@ -9,12 +7,12 @@ import {
   jsonMethodNotAllowed,
   readJsonBody,
 } from "@/lib/api-route";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { reservationSchema } from "@/lib/schemas";
 import { sendEmail } from "@/lib/mail";
 import { buildAdminReservationRequestEmail } from "@/lib/reservation-emails";
 import { serializeReservation } from "@/lib/reservations";
+import { requireRouteSession } from "@/lib/session";
 
 const reservationInclude = {
   user: {
@@ -35,16 +33,14 @@ function isReservationDuplicateError(error: unknown) {
 
 export async function GET(_request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return jsonError("Unauthorized", 401);
+    const auth = await requireRouteSession(_request);
+    if (!auth.ok) {
+      return auth.response;
     }
 
-    if (isInactiveAdmin(session.user)) {
-      return jsonError("Unauthorized", 401);
-    }
+    const session = auth.session;
 
-    const where = isActiveAdmin(session.user) ? {} : { userId: Number(session.user.id) };
+    const where = session.user.role === "ADMIN" ? {} : { userId: Number(session.user.id) };
 
     const reservations = await prisma.reservation.findMany({
       where,
@@ -66,10 +62,11 @@ export async function GET(_request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user || session.user.role !== "USER") {
-      return jsonError("Unauthorized", 401);
+    const auth = await requireRouteSession(request, "USER");
+    if (!auth.ok) {
+      return auth.response;
     }
+    const session = auth.session;
 
     const body = await readJsonBody<unknown>(request);
     if (!isRecord(body)) {

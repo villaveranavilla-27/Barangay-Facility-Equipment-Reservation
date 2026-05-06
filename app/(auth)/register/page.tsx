@@ -4,8 +4,8 @@ import { AuthForm } from "@/components/auth-form";
 
 export default function RegisterPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-4">
-      <div className="w-full max-w-[680px] rounded-lg bg-white px-4 py-5 shadow-md sm:px-6">
+    <main className="flex min-h-dvh items-start justify-center bg-gray-50 px-4 py-6 sm:px-6 sm:py-10 lg:items-center lg:py-12">
+      <div className="w-full max-w-[680px] rounded-2xl bg-white px-4 py-5 shadow-md sm:px-6 sm:py-6">
         <div className="mb-3 flex flex-col items-center">
           <Image
             src="/logo.png"
@@ -29,6 +29,6 @@ export default function RegisterPage() {
           </Link>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

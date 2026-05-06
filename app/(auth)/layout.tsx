@@ -1,7 +1,11 @@
-export default function AuthLayout({ children }: { children: React.ReactNode }) {
+import { redirectIfAuthenticated } from "@/lib/session";
+
+export default async function AuthLayout({ children }: { children: React.ReactNode }) {
+  await redirectIfAuthenticated();
+
   return (
-    <main className="min-h-screen bg-[var(--bg)]">
+    <div className="min-h-dvh bg-[var(--bg)]">
       {children}
-    </main>
+    </div>
   );
 }

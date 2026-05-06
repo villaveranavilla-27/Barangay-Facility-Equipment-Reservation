@@ -1,5 +1,5 @@
 const APP_URL_CANDIDATES = [
-  process.env.NEXTAUTH_URL,
+  process.env.APP_URL,
   process.env.NEXT_PUBLIC_API_URL,
   process.env.VERCEL_PROJECT_PRODUCTION_URL,
   process.env.VERCEL_URL,

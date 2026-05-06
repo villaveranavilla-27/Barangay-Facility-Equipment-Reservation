@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { EquipmentReturnStatus, ReservationStatus } from "@prisma/client";
-import { isActiveAdmin, isInactiveAdmin } from "@/lib/access";
 import {
   ApiRouteError,
   handleApiRouteError,
@@ -10,7 +8,6 @@ import {
   parseRouteParamId,
   readJsonBody,
 } from "@/lib/api-route";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { reservationAdminActionSchema } from "@/lib/schemas";
 import { sendEmail } from "@/lib/mail";
@@ -19,6 +16,7 @@ import {
   buildUserReservationDeniedEmail,
 } from "@/lib/reservation-emails";
 import { getEquipmentReturnStatus, serializeReservation } from "@/lib/reservations";
+import { requireRouteSession } from "@/lib/session";
 
 const reservationInclude = {
   user: {
@@ -82,20 +80,17 @@ function getReturnActionErrorMessage(
 
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return jsonError("Unauthorized", 401);
+    const auth = await requireRouteSession(_request);
+    if (!auth.ok) {
+      return auth.response;
     }
-
-    if (isInactiveAdmin(session.user)) {
-      return jsonError("Unauthorized", 401);
-    }
+    const session = auth.session;
 
     const reservationId = parseRouteParamId(params.id, "reservation id");
 
     const reservation = await prisma.reservation.findFirst({
       where:
-        isActiveAdmin(session.user)
+        session.user.role === "ADMIN"
           ? { reservationId }
           : {
               reservationId,
@@ -120,12 +115,13 @@ export async function GET(_request: Request, { params }: { params: { id: string 
 
 export async function PATCH(request: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!isActiveAdmin(session?.user)) {
-      return jsonError("Unauthorized", 401);
+    const auth = await requireRouteSession(request, "ADMIN");
+    if (!auth.ok) {
+      return auth.response;
     }
+    const session = auth.session;
 
-    const adminId = Number(session?.user?.id);
+    const adminId = Number(session.user.id);
     const body = await readJsonBody<unknown>(request);
     const parsed = reservationAdminActionSchema.safeParse(body);
     if (!parsed.success) {

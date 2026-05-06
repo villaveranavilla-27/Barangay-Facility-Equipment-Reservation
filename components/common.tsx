@@ -28,7 +28,7 @@ export function Button({
   href?: string;
 }) {
   const base =
-    "inline-flex items-center justify-center rounded-lg px-4 py-2 font-medium transition disabled:pointer-events-none disabled:opacity-50";
+    "inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg px-4 py-2.5 text-sm font-medium leading-5 transition disabled:pointer-events-none disabled:opacity-50 sm:text-base";
 
   const styles: Record<Variant, string> = {
     primary: "bg-[#165719] text-white hover:bg-[#134d15]",
@@ -59,7 +59,7 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...props}
       className={cn(
-        "w-full rounded-lg border border-border bg-white px-3 py-2 outline-none transition focus:ring-2 focus:ring-[#165719]",
+        "min-h-11 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-[#165719] sm:text-base",
         props.className
       )}
     />
@@ -71,7 +71,7 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
     <select
       {...props}
       className={cn(
-        "w-full rounded-lg border border-border bg-white px-3 py-2 outline-none transition focus:ring-2 focus:ring-[#165719]",
+        "min-h-11 w-full rounded-lg border border-border bg-white px-3 py-2.5 text-sm outline-none transition focus:ring-2 focus:ring-[#165719] sm:text-base",
         props.className
       )}
     />
@@ -156,7 +156,7 @@ export function Modal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 hover:bg-[#e9f3ea]"
+            className="inline-flex h-11 w-11 items-center justify-center rounded-full hover:bg-[#e9f3ea]"
             aria-label="Close modal"
           >
             x

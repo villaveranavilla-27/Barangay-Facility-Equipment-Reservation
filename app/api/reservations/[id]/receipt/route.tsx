@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import { pdf } from "@react-pdf/renderer";
-import { isActiveAdmin, isInactiveAdmin } from "@/lib/access";
 import {
   handleApiRouteError,
   jsonError,
   jsonMethodNotAllowed,
   parseRouteParamId,
 } from "@/lib/api-route";
-import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { ReservationReceiptDoc } from "@/components/pdf/reservation-receipt";
+import { requireRouteSession } from "@/lib/session";
 import { fmtDateTime } from "@/lib/utils";
 import {
   getReservationItemName,
@@ -20,20 +18,17 @@ import {
 
 export async function GET(_request: Request, { params }: { params: { id: string } }) {
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return jsonError("Unauthorized", 401);
+    const auth = await requireRouteSession(_request);
+    if (!auth.ok) {
+      return auth.response;
     }
-
-    if (isInactiveAdmin(session.user)) {
-      return jsonError("Unauthorized", 401);
-    }
+    const session = auth.session;
 
     const reservationId = parseRouteParamId(params.id, "reservation id");
 
     const reservation = await prisma.reservation.findFirst({
       where:
-        isActiveAdmin(session.user)
+        session.user.role === "ADMIN"
           ? { reservationId }
           : {
               reservationId,

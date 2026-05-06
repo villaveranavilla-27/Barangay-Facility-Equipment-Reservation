@@ -133,6 +133,7 @@ function ReservationActions({
   onDeny,
   onReturn,
   onCancel,
+  layout = "card",
 }: {
   mode: Mode;
   reservation: ReservationRow;
@@ -142,15 +143,23 @@ function ReservationActions({
   onDeny: (reservation: ReservationRow) => void;
   onReturn: (reservation: ReservationRow) => void;
   onCancel: (reservation: ReservationRow) => void;
+  layout?: "card" | "table";
 }) {
   const isRowPending = pending?.reservationId === reservation.reservationId;
-  const linkButtonClasses =
-    "inline-flex items-center justify-center rounded-lg bg-[#e9f3ea] px-4 py-2 text-sm font-medium text-[#165719] transition hover:bg-[#d8eadb]";
+  const isTableLayout = layout === "table";
+  const actionGroupClasses = isTableLayout
+    ? "flex min-w-[11rem] flex-col items-stretch gap-2"
+    : "grid gap-2 sm:grid-cols-2 lg:flex lg:flex-wrap";
+  const actionButtonClasses = isTableLayout ? "w-full" : "w-full sm:w-auto";
+  const linkButtonClasses = isTableLayout
+    ? "inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#e9f3ea] px-4 py-2.5 text-sm font-medium text-[#165719] transition hover:bg-[#d8eadb] sm:text-base"
+    : "inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-[#e9f3ea] px-4 py-2.5 text-sm font-medium text-[#165719] transition hover:bg-[#d8eadb] sm:w-auto sm:text-base";
 
   return (
-    <div className="flex flex-wrap gap-2">
+    <div className={actionGroupClasses}>
       <Button
         variant="secondary"
+        className={actionButtonClasses}
         disabled={isRowPending}
         onClick={() => onView(reservation)}
       >
@@ -159,11 +168,16 @@ function ReservationActions({
 
       {canReview(reservation, mode) ? (
         <>
-          <Button disabled={isRowPending} onClick={() => onApprove(reservation)}>
+          <Button
+            className={actionButtonClasses}
+            disabled={isRowPending}
+            onClick={() => onApprove(reservation)}
+          >
             {isRowPending && pending?.action === "APPROVED" ? activeLabel("APPROVED") : "Approve"}
           </Button>
           <Button
             variant="danger"
+            className={actionButtonClasses}
             disabled={isRowPending}
             onClick={() => onDeny(reservation)}
           >
@@ -175,6 +189,7 @@ function ReservationActions({
       {canReturn(reservation, mode) ? (
         <Button
           variant="secondary"
+          className={actionButtonClasses}
           disabled={isRowPending}
           onClick={() => onReturn(reservation)}
         >
@@ -185,6 +200,7 @@ function ReservationActions({
       {canCancel(reservation, mode) ? (
         <Button
           variant="danger"
+          className={actionButtonClasses}
           disabled={isRowPending}
           onClick={() => onCancel(reservation)}
         >
@@ -471,21 +487,21 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
   return (
     <div className="space-y-4">
       <Card>
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-4">
           <Input
-            className="w-full max-w-md"
+            className="w-full sm:max-w-md"
             placeholder="Search reservations"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
 
           {mode === "admin" ? (
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                 {ADMIN_PRIMARY_TABS.map((status) => (
                   <Button
                     key={status}
-                    className="shrink-0 whitespace-nowrap"
+                    className="w-full sm:w-auto"
                     variant={tab === status ? "primary" : "secondary"}
                     onClick={() => setTab(status)}
                   >
@@ -494,11 +510,11 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
                 ))}
               </div>
 
-              <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 lg:justify-end">
+              <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap xl:justify-end">
                 {ADMIN_EQUIPMENT_TABS.map((status) => (
                   <Button
                     key={status}
-                    className="shrink-0 whitespace-nowrap"
+                    className="w-full sm:w-auto"
                     variant={tab === status ? "primary" : "secondary"}
                     onClick={() => setTab(status)}
                   >
@@ -508,11 +524,11 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
               </div>
             </div>
           ) : (
-            <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
               {tabs.map((status) => (
                 <Button
                   key={status}
-                  className="shrink-0 whitespace-nowrap"
+                  className="w-full sm:w-auto"
                   variant={tab === status ? "primary" : "secondary"}
                   onClick={() => setTab(status)}
                 >
@@ -577,6 +593,7 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
                       mode={mode}
                       reservation={row}
                       pending={pending}
+                      layout="card"
                       onView={setView}
                       onApprove={(reservation) => {
                         setDecision({ action: "APPROVED", reservation });
@@ -595,58 +612,61 @@ export function ReservationsTable({ mode }: { mode: Mode }) {
             })}
           </div>
 
-          <Card className="hidden overflow-x-auto md:block">
-            <table className="min-w-[760px] text-left">
-              <thead>
-                <tr className="border-b border-border text-sm text-text-secondary">
-                  <th className="py-3 pr-4">Reservation ID</th>
-                  <th className="py-3 pr-4">Name</th>
-                  <th className="py-3 pr-4">Facility/Equipment</th>
-                  <th className="py-3 pr-4">Date & Time</th>
-                  <th className="py-3 pr-4">Status</th>
-                  <th className="py-3 pr-4">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((row) => {
-                  const displayStatus = getDisplayStatus(row, mode);
+          <Card className="hidden overflow-hidden md:block">
+            <div className="overflow-x-auto">
+              <table className="min-w-[960px] table-fixed text-left">
+                <thead>
+                  <tr className="border-b border-border text-sm text-text-secondary">
+                    <th className="w-28 py-3 pr-4">Reservation ID</th>
+                    <th className="w-44 py-3 pr-4">Name</th>
+                    <th className="w-48 py-3 pr-4">Facility/Equipment</th>
+                    <th className="w-64 py-3 pr-4">Date & Time</th>
+                    <th className="w-32 py-3 pr-4">Status</th>
+                    <th className="w-56 py-3 pr-4">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((row) => {
+                    const displayStatus = getDisplayStatus(row, mode);
 
-                  return (
-                    <tr key={row.reservationId} className="border-b border-border align-top">
-                      <td className="py-3 pr-4">{row.reservationId}</td>
-                      <td className="py-3 pr-4">{row.residentName}</td>
-                      <td className="py-3 pr-4">{row.itemName}</td>
-                      <td className="py-3 pr-4">
-                        {fmtDateTime(row.startDateTime)} - {fmtDateTime(row.endDateTime)}
-                      </td>
-                      <td className="py-3 pr-4">
-                        <Badge tone={statusTone(displayStatus)}>
-                          {formatStatus(displayStatus)}
-                        </Badge>
-                      </td>
-                      <td className="py-3 pr-4">
-                        <ReservationActions
-                          mode={mode}
-                          reservation={row}
-                          pending={pending}
-                          onView={setView}
-                          onApprove={(reservation) => {
-                            setDecision({ action: "APPROVED", reservation });
-                            setNotes("");
-                          }}
-                          onDeny={(reservation) => {
-                            setDecision({ action: "DENIED", reservation });
-                            setNotes("");
-                          }}
-                          onReturn={setReturning}
-                          onCancel={setCancelling}
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                    return (
+                      <tr key={row.reservationId} className="border-b border-border align-top">
+                        <td className="py-3 pr-4">{row.reservationId}</td>
+                        <td className="py-3 pr-4">{row.residentName}</td>
+                        <td className="py-3 pr-4">{row.itemName}</td>
+                        <td className="py-3 pr-4 whitespace-normal leading-6">
+                          {fmtDateTime(row.startDateTime)} - {fmtDateTime(row.endDateTime)}
+                        </td>
+                        <td className="py-3 pr-4">
+                          <Badge tone={statusTone(displayStatus)}>
+                            {formatStatus(displayStatus)}
+                          </Badge>
+                        </td>
+                        <td className="py-3 pr-4">
+                          <ReservationActions
+                            mode={mode}
+                            reservation={row}
+                            pending={pending}
+                            layout="table"
+                            onView={setView}
+                            onApprove={(reservation) => {
+                              setDecision({ action: "APPROVED", reservation });
+                              setNotes("");
+                            }}
+                            onDeny={(reservation) => {
+                              setDecision({ action: "DENIED", reservation });
+                              setNotes("");
+                            }}
+                            onReturn={setReturning}
+                            onCancel={setCancelling}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </Card>
         </>
       )}
