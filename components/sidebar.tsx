@@ -154,8 +154,6 @@ export function Sidebar({ role }: { role: Role }) {
                 try {
                   const response = await fetch("/api/auth/logout", {
                     method: "POST",
-                    credentials: "same-origin",
-                    cache: "no-store",
                   });
 
                   if (!response.ok) {

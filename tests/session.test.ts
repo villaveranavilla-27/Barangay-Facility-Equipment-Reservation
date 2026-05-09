@@ -1,15 +1,11 @@
 import assert from "node:assert/strict";
 import {
   SESSION_ABSOLUTE_TIMEOUT_MS,
-  SESSION_COOKIE_FALLBACK_NAME,
   SESSION_COOKIE_OPTIONS,
   SESSION_COOKIE_NAME,
   createSessionActivityUpdate,
   createSessionTimestamps,
   evaluateSessionTimeouts,
-  getSessionCookieDeletionDefinitions,
-  getSessionCookieName,
-  getSessionCookieOptions,
 } from "../lib/session-policy";
 
 function runTest(name: string, fn: () => void) {
@@ -118,59 +114,14 @@ runTest("exact timeout boundaries remain valid", () => {
   assert.equal(absoluteBoundary.expired, false);
 });
 
-runTest("session cookie policy stays secure on proxied HTTPS requests", () => {
-  const now = new Date("2026-05-06T00:00:00.000Z");
-  const requestHeaders = new Headers({
-    host: "barangay.example.gov.ph",
-    "x-forwarded-proto": "https",
-  });
-  const cookieOptions = getSessionCookieOptions(requestHeaders, now);
-
-  assert.equal(getSessionCookieName(requestHeaders), SESSION_COOKIE_NAME);
-  assert.equal(cookieOptions.httpOnly, true);
-  assert.equal(cookieOptions.secure, true);
-  assert.equal(cookieOptions.sameSite, "lax");
-  assert.equal(cookieOptions.path, "/");
-  assert.equal(cookieOptions.maxAge, SESSION_COOKIE_OPTIONS.maxAge);
-  assert.equal(
-    cookieOptions.expires.getTime(),
-    now.getTime() + SESSION_ABSOLUTE_TIMEOUT_MS
-  );
-});
-
-runTest("session cookie policy falls back to a non-host cookie on localhost HTTP", () => {
-  const now = new Date("2026-05-06T00:00:00.000Z");
-  const requestHeaders = new Headers({
-    host: "localhost:3000",
-    origin: "http://localhost:3000",
-  });
-  const cookieOptions = getSessionCookieOptions(requestHeaders, now);
-
-  assert.equal(getSessionCookieName(requestHeaders), SESSION_COOKIE_FALLBACK_NAME);
-  assert.equal(cookieOptions.httpOnly, true);
-  assert.equal(cookieOptions.secure, false);
-  assert.equal(cookieOptions.sameSite, "lax");
-  assert.equal(cookieOptions.path, "/");
-  assert.equal(cookieOptions.maxAge, SESSION_COOKIE_OPTIONS.maxAge);
-  assert.equal(
-    cookieOptions.expires.getTime(),
-    now.getTime() + SESSION_ABSOLUTE_TIMEOUT_MS
-  );
-});
-
-runTest("session cookie cleanup clears both secure and localhost cookie variants", () => {
-  const deletions = getSessionCookieDeletionDefinitions();
-
-  assert.deepEqual(
-    deletions.map((cookie) => cookie.name),
-    [SESSION_COOKIE_NAME, SESSION_COOKIE_FALLBACK_NAME]
-  );
-  assert.equal(deletions[0].secure, true);
-  assert.equal(deletions[1].secure, false);
-  assert.equal(deletions[0].maxAge, 0);
-  assert.equal(deletions[1].maxAge, 0);
-  assert.equal(deletions[0].expires.getTime(), 0);
-  assert.equal(deletions[1].expires.getTime(), 0);
+runTest("session cookie policy uses an opaque host cookie with server-side expiry", () => {
+  assert.equal(SESSION_COOKIE_NAME, "__Host-barangay-go-session");
+  assert.equal(SESSION_COOKIE_OPTIONS.httpOnly, true);
+  assert.equal(SESSION_COOKIE_OPTIONS.secure, true);
+  assert.equal(SESSION_COOKIE_OPTIONS.sameSite, "lax");
+  assert.equal(SESSION_COOKIE_OPTIONS.path, "/");
+  assert.equal("maxAge" in SESSION_COOKIE_OPTIONS, false);
+  assert.equal("expires" in SESSION_COOKIE_OPTIONS, false);
 });
 
 console.log("Session tests completed successfully.");
