@@ -12,7 +12,9 @@ export async function POST(request: Request) {
     const credentials = await request.json();
     const user = await authenticateCredentials(credentials);
 
-    await revokeCurrentSession();
+    await revokeCurrentSession({
+      headers: request.headers,
+    });
 
     const sessionId = await createSessionForUser(user, {
       headers: request.headers,
@@ -24,7 +26,9 @@ export async function POST(request: Request) {
       destination: getSessionHomePath(user),
     });
 
-    applySessionCookie(response, sessionId);
+    applySessionCookie(response, sessionId, {
+      headers: request.headers,
+    });
     return response;
   } catch (error) {
     const message =

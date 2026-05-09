@@ -47,12 +47,12 @@ A full-stack barangay reservation system built with Next.js App Router, TypeScri
 ## Default Demo Credentials
 
 Admin:
-- Email: `anavilla.villaver@bisu.edu.ph`
-- Password: `villa.2706`
+- Email: `admin@example.com`
+- Password: `admin123`
 
 User:
-- Email: `villaveranavilla@gmail.com`
-- Password: `villa.2706`
+- Email: `user1@example.com`
+- Password: `user123`
 
 ## Notes
 

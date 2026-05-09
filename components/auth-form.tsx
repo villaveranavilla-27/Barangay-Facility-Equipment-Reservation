@@ -92,6 +92,8 @@ export function AuthForm({
 
       const res = await fetch("/api/auth/login", {
         method: "POST",
+        credentials: "same-origin",
+        cache: "no-store",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           identifier,

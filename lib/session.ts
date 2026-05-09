@@ -8,22 +8,32 @@ import { AdminRole, Prisma, Role } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import {
   SESSION_ABSOLUTE_TIMEOUT_MS,
+  SESSION_COOKIE_FALLBACK_NAME,
   SESSION_COOKIE_NAME,
   SESSION_COOKIE_OPTIONS,
   SESSION_IDLE_TIMEOUT_MS,
   createSessionActivityUpdate,
   createSessionTimestamps,
   evaluateSessionTimeouts,
+  getSessionCookieDeletionDefinitions,
+  getSessionCookieName,
+  getSessionCookieNames,
+  getSessionCookieOptions,
 } from "@/lib/session-policy";
 
 export {
   SESSION_ABSOLUTE_TIMEOUT_MS,
+  SESSION_COOKIE_FALLBACK_NAME,
   SESSION_COOKIE_NAME,
   SESSION_COOKIE_OPTIONS,
   SESSION_IDLE_TIMEOUT_MS,
   createSessionActivityUpdate,
   createSessionTimestamps,
   evaluateSessionTimeouts,
+  getSessionCookieDeletionDefinitions,
+  getSessionCookieName,
+  getSessionCookieNames,
+  getSessionCookieOptions,
 } from "@/lib/session-policy";
 
 type SessionRole = "ADMIN" | "USER";
@@ -180,8 +190,18 @@ function generateSessionId() {
   return crypto.randomBytes(32).toString("base64url");
 }
 
-function getSessionTokenFromCookie() {
-  return cookies().get(SESSION_COOKIE_NAME)?.value ?? null;
+function getSessionTokenFromCookie(requestHeaders?: Headers) {
+  const cookieStore = cookies();
+
+  for (const cookieName of getSessionCookieNames(requestHeaders ?? readCurrentHeaders())) {
+    const value = cookieStore.get(cookieName)?.value;
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return null;
 }
 
 async function deleteSessionRecord(client: SessionClient, sessionId: string) {
@@ -311,7 +331,7 @@ function recordViolatesBinding(record: LockedSessionRecord, requestHeaders?: Hea
 }
 
 async function resolveCurrentSession(options?: { headers?: Headers }): Promise<SessionResolution> {
-  const sessionId = getSessionTokenFromCookie();
+  const sessionId = getSessionTokenFromCookie(options?.headers);
 
   if (!sessionId) {
     return {
@@ -478,8 +498,8 @@ export async function revokeSessionById(sessionId: string) {
   await deleteSessionRecord(prisma, sessionId);
 }
 
-export async function revokeCurrentSession() {
-  const sessionId = getSessionTokenFromCookie();
+export async function revokeCurrentSession(options?: { headers?: Headers }) {
+  const sessionId = getSessionTokenFromCookie(options?.headers);
 
   if (!sessionId) {
     return;
@@ -530,19 +550,20 @@ export async function cleanupExpiredSessions(now = getNow()) {
   return result.count;
 }
 
-export function applySessionCookie(response: NextResponse, sessionId: string) {
+export function applySessionCookie(
+  response: NextResponse,
+  sessionId: string,
+  options?: { headers?: Headers }
+) {
   response.cookies.set({
-    name: SESSION_COOKIE_NAME,
+    name: getSessionCookieName(options?.headers),
     value: sessionId,
-    ...SESSION_COOKIE_OPTIONS,
+    ...getSessionCookieOptions(options?.headers),
   });
 }
 
 export function clearSessionCookie(response: NextResponse) {
-  response.cookies.set({
-    name: SESSION_COOKIE_NAME,
-    value: "",
-    ...SESSION_COOKIE_OPTIONS,
-    maxAge: 0,
-  });
+  for (const cookie of getSessionCookieDeletionDefinitions()) {
+    response.cookies.set(cookie);
+  }
 }
