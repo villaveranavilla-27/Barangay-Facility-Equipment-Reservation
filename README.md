@@ -47,15 +47,17 @@ A full-stack barangay reservation system built with Next.js App Router, TypeScri
 ## Default Demo Credentials
 
 Admin:
-- Email: `anavilla.villaver@bisu.edu.ph`
-- Password: `villa.2706`
+- Email: `admin@example.com`
+- Password: `admin123`
 
 User:
-- Email: `villaveranavilla@gmail.com`
-- Password: `villa.2706`
+- Email: `user1@example.com`
+- Password: `user123`
 
 ## Notes
-
+- To test email notification use a working email account.
+- For user sign up, use a working gmail/email account to make the feature works.
+-For add admin, assign a real gmail/email account to make the feature works.
 - Passwords are stored as short demo hashes because the provided Prisma schema keeps the password columns at `VARCHAR(50)`.
 - Auth uses server-side `AppSession` rows in MySQL. The browser stores only an opaque `__Host-barangay-go-session` cookie with `HttpOnly`, `Secure`, `SameSite=Lax`, and no client-side expiry.
 - Sessions expire after 10 minutes of inactivity or 30 minutes from login, whichever happens first.
