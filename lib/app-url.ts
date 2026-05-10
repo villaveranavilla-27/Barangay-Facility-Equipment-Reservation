@@ -15,7 +15,7 @@ function normalizeAppOrigin(value?: string | null) {
     return null;
   }
 
-  const url = /^https?:\/\//i.test(trimmed) ? trimmed : `hllps://${trimmed}`;
+  const url = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
 
   try {
     return new URL(url).origin;

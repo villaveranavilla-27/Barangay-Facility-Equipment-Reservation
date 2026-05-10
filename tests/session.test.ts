@@ -6,6 +6,7 @@ import {
   createSessionActivityUpdate,
   createSessionTimestamps,
   evaluateSessionTimeouts,
+  getSessionCookieSettings,
 } from "../lib/session-policy";
 
 function runTest(name: string, fn: () => void) {
@@ -114,14 +115,29 @@ runTest("exact timeout boundaries remain valid", () => {
   assert.equal(absoluteBoundary.expired, false);
 });
 
-runTest("session cookie policy uses an opaque host cookie with server-side expiry", () => {
-  assert.equal(SESSION_COOKIE_NAME, "__Host-barangay-go-session");
+runTest("development cookie policy allows localhost testing without downgrading server-side expiry", () => {
+  const developmentCookie = getSessionCookieSettings("development");
+
+  assert.equal(SESSION_COOKIE_NAME, developmentCookie.name);
   assert.equal(SESSION_COOKIE_OPTIONS.httpOnly, true);
-  assert.equal(SESSION_COOKIE_OPTIONS.secure, true);
+  assert.equal(SESSION_COOKIE_OPTIONS.secure, false);
   assert.equal(SESSION_COOKIE_OPTIONS.sameSite, "lax");
   assert.equal(SESSION_COOKIE_OPTIONS.path, "/");
+  assert.equal(SESSION_COOKIE_NAME, "barangay-go-session");
   assert.equal("maxAge" in SESSION_COOKIE_OPTIONS, false);
   assert.equal("expires" in SESSION_COOKIE_OPTIONS, false);
+});
+
+runTest("production cookie policy keeps the secure host-prefixed cookie", () => {
+  const productionCookie = getSessionCookieSettings("production");
+
+  assert.equal(productionCookie.name, "__Host-barangay-go-session");
+  assert.equal(productionCookie.options.httpOnly, true);
+  assert.equal(productionCookie.options.secure, true);
+  assert.equal(productionCookie.options.sameSite, "lax");
+  assert.equal(productionCookie.options.path, "/");
+  assert.equal("maxAge" in productionCookie.options, false);
+  assert.equal("expires" in productionCookie.options, false);
 });
 
 console.log("Session tests completed successfully.");

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { authenticateCredentials } from "@/lib/auth";
+import { AuthenticationError, authenticateCredentials } from "@/lib/auth";
 import {
   applySessionCookie,
   createSessionForUser,
@@ -27,10 +27,14 @@ export async function POST(request: Request) {
     applySessionCookie(response, sessionId);
     return response;
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unable to sign in.";
-    const status = message === "Missing login fields" ? 400 : 401;
+    if (error instanceof AuthenticationError) {
+      return NextResponse.json({ error: error.message }, { status: error.status });
+    }
 
-    return NextResponse.json({ error: message }, { status });
+    console.error("[/api/auth/login] unexpected failure", error);
+    return NextResponse.json(
+      { error: "Unable to sign in right now. Please try again." },
+      { status: 500 }
+    );
   }
 }

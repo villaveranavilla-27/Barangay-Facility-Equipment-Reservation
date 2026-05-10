@@ -1,12 +1,23 @@
-export const SESSION_COOKIE_NAME = "__Host-barangay-go-session";
+export function getSessionCookieSettings(nodeEnv = process.env.NODE_ENV) {
+  const secure = nodeEnv === "production";
+
+  return {
+    name: secure ? "__Host-barangay-go-session" : "barangay-go-session",
+    options: {
+      httpOnly: true,
+      secure,
+      sameSite: "lax" as const,
+      path: "/",
+    },
+  };
+}
+
+const sessionCookieSettings = getSessionCookieSettings();
+
+export const SESSION_COOKIE_NAME = sessionCookieSettings.name;
 export const SESSION_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
 export const SESSION_ABSOLUTE_TIMEOUT_MS = 30 * 60 * 1000;
-export const SESSION_COOKIE_OPTIONS = {
-  httpOnly: true,
-  secure: true,
-  sameSite: "lax" as const,
-  path: "/",
-};
+export const SESSION_COOKIE_OPTIONS = sessionCookieSettings.options;
 
 function getNow() {
   return new Date();

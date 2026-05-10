@@ -4,6 +4,13 @@ import { prisma } from "@/lib/prisma";
 import { loginSchema } from "@/lib/schemas";
 import { md5 } from "@/lib/utils";
 
+export class AuthenticationError extends Error {
+  constructor(message: string, public readonly status: 400 | 401 | 403 = 401) {
+    super(message);
+    this.name = "AuthenticationError";
+  }
+}
+
 export type AuthenticatedPrincipal = {
   id: string;
   username: string;
@@ -31,7 +38,7 @@ export async function authenticateCredentials(credentials: unknown): Promise<Aut
   const parsed = loginSchema.safeParse(credentials);
 
   if (!parsed.success) {
-    throw new Error("Missing login fields");
+    throw new AuthenticationError("Missing login fields", 400);
   }
 
   const { identifier, password, intendedRole } = parsed.data;
@@ -55,7 +62,7 @@ export async function authenticateCredentials(credentials: unknown): Promise<Aut
     });
 
     if (!admin) {
-      throw new Error("Invalid email/username or password");
+      throw new AuthenticationError("Invalid email/username or password", 401);
     }
 
     const linkedUser = await prisma.user.findUnique({
@@ -69,12 +76,12 @@ export async function authenticateCredentials(credentials: unknown): Promise<Aut
     });
 
     if (linkedUser && !linkedUser.isActive) {
-      throw new Error("This user account is inactive");
+      throw new AuthenticationError("This user account is inactive", 403);
     }
 
     const isValid = await checkPassword(password, linkedUser?.password ?? admin.password);
     if (!isValid) {
-      throw new Error("Invalid email/username or password");
+      throw new AuthenticationError("Invalid email/username or password", 401);
     }
 
     return {
@@ -106,12 +113,12 @@ export async function authenticateCredentials(credentials: unknown): Promise<Aut
   });
 
   if (!user) {
-    throw new Error("Invalid email/username or password");
+    throw new AuthenticationError("Invalid email/username or password", 401);
   }
 
   const isValid = await checkPassword(password, user.password);
   if (!isValid) {
-    throw new Error("Invalid email/username or password");
+    throw new AuthenticationError("Invalid email/username or password", 401);
   }
 
   return {
