@@ -102,7 +102,7 @@ function buildReservationDetails(reservation: ReservationEmailContext) {
     <table role="presentation" cellspacing="0" cellpadding="0" style="width:100%;border-collapse:collapse;">
       ${detailRow("Reservation ID", reservation.reservationId)}
       ${detailRow("Status", reservation.status ? sentenceCase(reservation.status) : null)}
-      ${detailRow("Resident name", reservation.user.name)}
+      ${detailRow("User name", reservation.user.name)}
       ${detailRow("Email", reservation.user.email)}
       ${detailRow("Contact number", reservation.user.contactNumber)}
       ${detailRow("Item type", sentenceCase(itemType))}
