@@ -1,6 +1,6 @@
-// middleware.ts
-import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { NextResponse } from "next/server";
+import { updateSession } from "@/utils/supabase/middleware";
 
 const authPaths = ["/login", "/register", "/admin-login"];
 const protectedUserPaths = ["/user/"];
@@ -21,7 +21,7 @@ export async function middleware(request: NextRequest) {
   const isUserPath = protectedUserPaths.some((path) => pathname.startsWith(path));
   const isAdminPath = protectedAdminPaths.some((path) => pathname.startsWith(path));
 
-  const response = NextResponse.next();
+  const response = await updateSession(request);
 
   if (isAuthPath || isUserPath || isAdminPath) {
     response.headers.set(
@@ -36,11 +36,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    "/login/:path*",
-    "/register/:path*",
-    "/admin-login/:path*",
-    "/user/:path*",
-    "/admin/:path*",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
 };

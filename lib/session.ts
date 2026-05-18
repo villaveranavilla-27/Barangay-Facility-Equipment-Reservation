@@ -193,18 +193,18 @@ async function deleteSessionRecord(client: SessionClient, sessionId: string) {
 async function lockSessionRecord(client: SessionClient, sessionId: string) {
   const rows = await client.$queryRaw<LockedSessionRecord[]>`
     SELECT
-      Session_ID AS sessionId,
-      Role AS role,
-      Username AS username,
-      User_ID AS userId,
-      Admin_ID AS adminId,
-      CreatedAt AS createdAt,
-      LastActivity AS lastActivity,
-      ExpiresAt AS expiresAt,
-      IP_Address AS ipAddress,
-      User_Agent AS userAgent
-    FROM AppSession
-    WHERE Session_ID = ${sessionId}
+      "Session_ID" AS "sessionId",
+      "Role" AS "role",
+      "Username" AS "username",
+      "User_ID" AS "userId",
+      "Admin_ID" AS "adminId",
+      "CreatedAt" AS "createdAt",
+      "LastActivity" AS "lastActivity",
+      "ExpiresAt" AS "expiresAt",
+      "IP_Address" AS "ipAddress",
+      "User_Agent" AS "userAgent"
+    FROM "AppSession"
+    WHERE "Session_ID" = ${sessionId}
     FOR UPDATE
   `;
 
