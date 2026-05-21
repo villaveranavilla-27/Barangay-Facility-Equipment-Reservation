@@ -1,20 +1,10 @@
 import { createClient } from "@supabase/supabase-js";
-
-function requireEnv(name: string) {
-  const value = process.env[name]?.trim();
-
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-
-  return value;
-}
+import { getSupabaseEnv } from "@/utils/supabase/env";
 
 export function createSupabaseClient() {
-  return createClient(
-    requireEnv("NEXT_PUBLIC_SUPABASE_URL"),
-    requireEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY"),
-  );
+  const { supabaseUrl, supabasePublishableKey } = getSupabaseEnv();
+
+  return createClient(supabaseUrl, supabasePublishableKey);
 }
 
 export function createSupabaseAdminClient() {
@@ -28,7 +18,7 @@ export function createSupabaseAdminClient() {
     );
   }
 
-  return createClient(requireEnv("NEXT_PUBLIC_SUPABASE_URL"), secretKey, {
+  return createClient(getSupabaseEnv().supabaseUrl, secretKey, {
     auth: {
       autoRefreshToken: false,
       persistSession: false,
