@@ -1,6 +1,6 @@
 import bcrypt from "bcryptjs";
-import { AdminRole, Role } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { database as prisma } from "@/lib/database";
+import { AdminRole, Role } from "@/lib/database-types";
 import { loginSchema } from "@/lib/schemas";
 import { md5 } from "@/lib/utils";
 
@@ -30,7 +30,7 @@ async function checkPassword(plain: string, stored: string) {
   return md5(plain) === stored;
 }
 
-function normalizeAdminRole(role: AdminRole | null | undefined) {
+function normalizeAdminRole(role: string | null | undefined) {
   return role === AdminRole.CORE_ADMIN ? "CORE_ADMIN" : role === AdminRole.ADMIN ? "ADMIN" : null;
 }
 

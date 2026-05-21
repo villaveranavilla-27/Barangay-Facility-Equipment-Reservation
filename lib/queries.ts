@@ -1,5 +1,8 @@
-import { prisma } from "@/lib/prisma";
-import { Prisma, ReservationStatus } from "@prisma/client";
+import { database as prisma } from "@/lib/database";
+import {
+  type ReservationWithRelations,
+  ReservationStatus,
+} from "@/lib/database-types";
 
 export async function getReservationDetails(id: number) {
   const reservation = await prisma.reservation.findUnique({
@@ -21,12 +24,12 @@ export async function getReservationDetails(id: number) {
   return { reservation, itemName, price };
 }
 
-export async function listEnrichedReservations(where?: Prisma.ReservationWhereInput) {
-  const reservations = await prisma.reservation.findMany({
+export async function listEnrichedReservations(where?: Record<string, unknown>) {
+  const reservations = (await prisma.reservation.findMany({
     where,
     orderBy: { reservationId: "desc" },
     include: { user: true, facility: true, equipment: true },
-  });
+  })) as ReservationWithRelations[];
 
   return reservations.map((reservation) => ({
     ...reservation,
@@ -38,7 +41,7 @@ export async function listEnrichedReservations(where?: Prisma.ReservationWhereIn
   }));
 }
 
-export function statusTone(status: ReservationStatus | string) {
+export function statusTone(status: string) {
   if (status === "APPROVED") return "green";
   if (status === "PENDING") return "yellow";
   if (status === "DENIED" || status === "CANCELLED") return "red";

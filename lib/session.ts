@@ -4,8 +4,13 @@ import crypto from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
-import { AdminRole, Prisma, Role } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { database as prisma, type DatabaseClient } from "@/lib/database";
+import {
+  AdminRole,
+  Role,
+  type AdminRoleValue,
+  type RoleValue,
+} from "@/lib/database-types";
 import {
   SESSION_ABSOLUTE_TIMEOUT_MS,
   SESSION_COOKIE_NAME,
@@ -36,10 +41,10 @@ type SessionFailureReason =
   | "absolute"
   | "principal";
 
-type SessionClient = Prisma.TransactionClient | typeof prisma;
+type SessionClient = DatabaseClient;
 type LockedSessionRecord = {
   sessionId: string;
-  role: Role;
+  role: RoleValue;
   username: string;
   userId: number | null;
   adminId: number | null;
@@ -104,7 +109,7 @@ function isRoleAllowed(role: SessionRole, requiredRole: RouteSessionRole) {
   return requiredRole === "ANY" || role === requiredRole;
 }
 
-function toAdminRole(role: AdminRole | null | undefined) {
+function toAdminRole(role: AdminRoleValue | null | undefined) {
   if (role === AdminRole.CORE_ADMIN) {
     return "CORE_ADMIN";
   }
@@ -118,6 +123,14 @@ function toAdminRole(role: AdminRole | null | undefined) {
 
 function getNow() {
   return new Date();
+}
+
+function toRecordDate(value: Date | string | null) {
+  if (value === null) {
+    return null;
+  }
+
+  return value instanceof Date ? value : new Date(value);
 }
 
 function normalizeUserAgent(value: string | null | undefined) {
@@ -208,7 +221,18 @@ async function lockSessionRecord(client: SessionClient, sessionId: string) {
     FOR UPDATE
   `;
 
-  return rows[0] ?? null;
+  const row = rows[0];
+
+  if (!row) {
+    return null;
+  }
+
+  return {
+    ...row,
+    createdAt: toRecordDate(row.createdAt)!,
+    lastActivity: toRecordDate(row.lastActivity)!,
+    expiresAt: toRecordDate(row.expiresAt)!,
+  };
 }
 
 async function buildSessionUser(
@@ -493,7 +517,7 @@ export async function revokeSessionsForIdentity(options: {
   userId?: number | null;
   adminId?: number | null;
 }) {
-  const filters: Prisma.AppSessionWhereInput[] = [];
+  const filters: Record<string, unknown>[] = [];
 
   if (options.username) {
     filters.push({ username: options.username });

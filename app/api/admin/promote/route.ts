@@ -1,6 +1,6 @@
-import { AdminRole, Role } from "@prisma/client";
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { database as prisma } from "@/lib/database";
+import { AdminRole, Role } from "@/lib/database-types";
 import { requireRouteSession, revokeSessionsForIdentity } from "@/lib/session";
 
 class PromoteAdminError extends Error {

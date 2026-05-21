@@ -1,6 +1,13 @@
 import fs from "node:fs";
 import path from "node:path";
-import { PrismaClient } from "@prisma/client";
+import { createDatabaseClientForUrl } from "@/lib/database";
+import {
+  type AdminRecord,
+  type EquipmentRecord,
+  type FacilityRecord,
+  type ReservationRecord,
+  type UserRecord,
+} from "@/lib/database-types";
 
 function requireEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -15,22 +22,15 @@ function requireEnv(name: string) {
 const databaseUrl = requireEnv("BACKUP_DATABASE_URL");
 const outputPath = requireEnv("BACKUP_OUTPUT_PATH");
 const label = process.env.BACKUP_LABEL?.trim() || "database-backup";
-
-const prisma = new PrismaClient({
-  datasources: {
-    db: {
-      url: databaseUrl,
-    },
-  },
-});
+const database = createDatabaseClientForUrl(databaseUrl);
 
 async function main() {
   const [admins, users, equipment, facilities, reservations] = await Promise.all([
-    prisma.admin.findMany({ orderBy: { adminId: "asc" } }),
-    prisma.user.findMany({ orderBy: { userId: "asc" } }),
-    prisma.equipment.findMany({ orderBy: { equipmentId: "asc" } }),
-    prisma.facility.findMany({ orderBy: { facilityId: "asc" } }),
-    prisma.reservation.findMany({ orderBy: { reservationId: "asc" } }),
+    database.admin.findMany({ orderBy: { adminId: "asc" } }) as Promise<AdminRecord[]>,
+    database.user.findMany({ orderBy: { userId: "asc" } }) as Promise<UserRecord[]>,
+    database.equipment.findMany({ orderBy: { equipmentId: "asc" } }) as Promise<EquipmentRecord[]>,
+    database.facility.findMany({ orderBy: { facilityId: "asc" } }) as Promise<FacilityRecord[]>,
+    database.reservation.findMany({ orderBy: { reservationId: "asc" } }) as Promise<ReservationRecord[]>,
   ]);
 
   const payload = {
@@ -69,5 +69,5 @@ main()
     process.exit(1);
   })
   .finally(async () => {
-    await prisma.$disconnect();
+    await database.$disconnect();
   });

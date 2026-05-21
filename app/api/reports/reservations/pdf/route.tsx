@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { pdf } from "@react-pdf/renderer";
-import { prisma } from "@/lib/prisma";
+import { database as prisma } from "@/lib/database";
+import { type ReservationWithRelations } from "@/lib/database-types";
 import { ReservationsSummaryDoc } from "@/components/pdf/reservations-summary";
 import { requireRouteSession } from "@/lib/session";
 import { fmtDate } from "@/lib/utils";
@@ -20,11 +21,11 @@ export async function GET(request: Request) {
       ? { startDateTime: { gte: new Date(from), lte: new Date(to) } }
       : {};
 
-  const reservations = await prisma.reservation.findMany({
+  const reservations = (await prisma.reservation.findMany({
     where,
     include: { user: true, facility: true, equipment: true },
     orderBy: { reservationId: "desc" },
-  });
+  })) as ReservationWithRelations[];
 
   const rows = reservations.map((reservation) => ({
     id: reservation.reservationId,

@@ -1,6 +1,6 @@
-import { FacilityStatus, ReservationStatus } from "@prisma/client";
 import { z } from "zod";
 import { ADMIN_ROLE, ADMIN_ROLE_VALUES } from "@/lib/admin-roles";
+import { FacilityStatus, ReservationStatus } from "@/lib/database-types";
 
 const personNamePattern = /^[A-Za-z][A-Za-z\s.'-]*$/;
 const usernamePattern = /^[A-Za-z0-9_]+$/;

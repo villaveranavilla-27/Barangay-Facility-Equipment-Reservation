@@ -114,6 +114,7 @@ async function main() {
 
       const scheduled = schedulePendingReservationAdminNotification(reservation, {
         env: {
+          NODE_ENV: "test",
           EMAIL_USER: "admin@example.com",
           ENABLE_ADMIN_BOOKING_NOTIFICATIONS: "true",
         },
@@ -181,6 +182,7 @@ async function main() {
 
       const result = await sendPendingReservationAdminNotification(createReservation(), {
         env: {
+          NODE_ENV: "test",
           ENABLE_ADMIN_BOOKING_NOTIFICATIONS: "true",
         },
         logger: {

@@ -1,8 +1,13 @@
-import { Prisma, Role } from "@prisma/client";
 import { NextResponse } from "next/server";
 import { ADMIN_ROLE } from "@/lib/admin-roles";
 import { isActiveAdmin, isCoreAdmin } from "@/lib/access";
-import { prisma } from "@/lib/prisma";
+import { database as prisma } from "@/lib/database";
+import {
+  type AdminRecord,
+  DatabaseClientKnownRequestError,
+  Role,
+  type UserRecord,
+} from "@/lib/database-types";
 import {
   adminCreateSchema,
   adminRemovalSchema,
@@ -27,9 +32,36 @@ const adminSelect = {
   deactivatedAt: true,
 } as const;
 
-type AdminDirectoryRecord = Prisma.AdminGetPayload<{
-  select: typeof adminSelect;
-}>;
+type AdminDirectoryRecord = Pick<
+  AdminRecord,
+  | "adminId"
+  | "name"
+  | "birthdate"
+  | "gender"
+  | "address"
+  | "username"
+  | "contactNumber"
+  | "email"
+  | "role"
+  | "isActive"
+  | "createdAt"
+  | "deactivatedAt"
+>;
+
+type UserDirectoryRecord = Pick<
+  UserRecord,
+  | "userId"
+  | "name"
+  | "birthdate"
+  | "gender"
+  | "address"
+  | "username"
+  | "contactNumber"
+  | "email"
+  | "role"
+  | "isActive"
+  | "deactivatedAt"
+>;
 
 class AdminManagementError extends Error {
   constructor(
@@ -102,7 +134,7 @@ function serializeAdminDirectoryRecord(
 }
 
 function isAdminUniqueConstraintError(error: unknown) {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+  return error instanceof DatabaseClientKnownRequestError && error.code === "P2002";
 }
 
 export async function GET(request: Request) {
@@ -121,10 +153,10 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const admins = await prisma.admin.findMany({
+    const admins = (await prisma.admin.findMany({
       orderBy: { adminId: "desc" },
       select: adminSelect,
-    });
+    })) as AdminDirectoryRecord[];
 
     const currentAdminId = Number(session.user.id);
     const activeAdminCount = admins.filter((admin) => admin.isActive).length;
@@ -152,7 +184,7 @@ export async function GET(request: Request) {
   }
 
   if (isActiveAdmin(session.user)) {
-    const users = await prisma.user.findMany({
+    const users = (await prisma.user.findMany({
       where: search
         ? {
             OR: [
@@ -176,11 +208,11 @@ export async function GET(request: Request) {
         isActive: true,
         deactivatedAt: true,
       },
-    });
+    })) as UserDirectoryRecord[];
 
     const activeAdminLinks =
       users.length > 0
-        ? await prisma.admin.findMany({
+        ? ((await prisma.admin.findMany({
             where: {
               isActive: true,
               username: {
@@ -188,7 +220,7 @@ export async function GET(request: Request) {
               },
             },
             select: { username: true },
-          })
+          })) as Array<Pick<AdminRecord, "username">>)
         : [];
 
     const activeAdminUsernames = new Set(

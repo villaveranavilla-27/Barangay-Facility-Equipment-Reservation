@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import { database as prisma } from "@/lib/database";
 import { registerSchema } from "@/lib/schemas";
 import { md5 } from "@/lib/utils";
 

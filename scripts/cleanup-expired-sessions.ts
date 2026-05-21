@@ -1,5 +1,5 @@
 import { cleanupExpiredSessions } from "@/lib/session";
-import { prisma } from "@/lib/prisma";
+import { database as prisma } from "@/lib/database";
 
 async function main() {
   const deletedCount = await cleanupExpiredSessions();

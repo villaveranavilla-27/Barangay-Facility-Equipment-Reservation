@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { EquipmentReturnStatus, ReservationStatus } from "@prisma/client";
 import {
   ApiRouteError,
   handleApiRouteError,
@@ -8,7 +7,11 @@ import {
   parseRouteParamId,
   readJsonBody,
 } from "@/lib/api-route";
-import { prisma } from "@/lib/prisma";
+import { database as prisma } from "@/lib/database";
+import {
+  EquipmentReturnStatus,
+  ReservationStatus,
+} from "@/lib/database-types";
 import { reservationAdminActionSchema } from "@/lib/schemas";
 import { sendEmail } from "@/lib/mail";
 import {
@@ -46,7 +49,7 @@ async function getReservationById(
   });
 }
 
-function getPendingActionErrorMessage(status: ReservationStatus) {
+function getPendingActionErrorMessage(status: string) {
   return status === ReservationStatus.PENDING
     ? "This reservation is no longer pending."
     : `This reservation is already ${status.toLowerCase()}.`;

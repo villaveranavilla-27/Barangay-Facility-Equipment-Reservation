@@ -6,7 +6,7 @@ import {
   jsonMethodNotAllowed,
   parseRouteParamId,
 } from "@/lib/api-route";
-import { prisma } from "@/lib/prisma";
+import { database as prisma } from "@/lib/database";
 import { ReservationReceiptDoc } from "@/components/pdf/reservation-receipt";
 import { requireRouteSession } from "@/lib/session";
 import { fmtDateTime } from "@/lib/utils";

@@ -1,6 +1,6 @@
 ## Barangay Facility and Equipment Management System
 
-A full-stack barangay reservation system built with Next.js App Router, TypeScript, Tailwind CSS, Prisma, Supabase PostgreSQL, server-side database-backed sessions, Nodemailer, FullCalendar, and @react-pdf/renderer.
+A full-stack barangay reservation system built with Next.js App Router, TypeScript, Tailwind CSS, Supabase PostgreSQL, direct Postgres server access, server-side database-backed sessions, Nodemailer, FullCalendar, and @react-pdf/renderer.
 
 ## Features
 
@@ -29,14 +29,14 @@ A full-stack barangay reservation system built with Next.js App Router, TypeScri
 
 2. Create the database and set your environment variables using `.env.example`.
 
-3. Apply Prisma migrations:
+3. Apply the Supabase schema migration:
    ```bash
-   npx prisma migrate deploy
+   npm run db:migrate
    ```
 
 4. Seed the database:
    ```bash
-   npx prisma db seed
+   npm run seed
    ```
 
 5. Start the development server:

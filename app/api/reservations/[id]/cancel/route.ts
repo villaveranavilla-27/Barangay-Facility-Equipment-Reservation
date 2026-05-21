@@ -1,4 +1,3 @@
-import { EquipmentReturnStatus, ReservationStatus } from "@prisma/client";
 import { NextResponse } from "next/server";
 import {
   ApiRouteError,
@@ -7,7 +6,11 @@ import {
   jsonMethodNotAllowed,
   parseRouteParamId,
 } from "@/lib/api-route";
-import { prisma } from "@/lib/prisma";
+import { database as prisma } from "@/lib/database";
+import {
+  EquipmentReturnStatus,
+  ReservationStatus,
+} from "@/lib/database-types";
 import {
   getReservationCancellationErrorMessage,
   serializeReservation,

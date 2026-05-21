@@ -1,4 +1,3 @@
-import { Prisma } from "@prisma/client";
 import { NextResponse } from "next/server";
 import {
   handleApiRouteError,
@@ -8,7 +7,11 @@ import {
   readJsonBody,
 } from "@/lib/api-route";
 import { schedulePendingReservationAdminNotification } from "@/lib/admin-booking-notifications";
-import { prisma } from "@/lib/prisma";
+import { database as prisma } from "@/lib/database";
+import {
+  DatabaseClientKnownRequestError,
+  type ReservationWithRelations,
+} from "@/lib/database-types";
 import { reservationSchema } from "@/lib/schemas";
 import { serializeReservation } from "@/lib/reservations";
 import { requireRouteSession } from "@/lib/session";
@@ -22,12 +25,8 @@ const reservationInclude = {
   admin: { select: { adminId: true, name: true } },
 } as const;
 
-type ReservationWithRelations = Prisma.ReservationGetPayload<{
-  include: typeof reservationInclude;
-}>;
-
 function isReservationDuplicateError(error: unknown) {
-  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+  return error instanceof DatabaseClientKnownRequestError && error.code === "P2002";
 }
 
 export async function GET(_request: Request) {
@@ -41,11 +40,11 @@ export async function GET(_request: Request) {
 
     const where = session.user.role === "ADMIN" ? {} : { userId: Number(session.user.id) };
 
-    const reservations = await prisma.reservation.findMany({
+    const reservations = (await prisma.reservation.findMany({
       where,
       orderBy: { reservationId: "desc" },
       include: reservationInclude,
-    });
+    })) as ReservationWithRelations[];
 
     const data = reservations.map((reservation) => serializeReservation(reservation));
 
@@ -141,7 +140,7 @@ export async function POST(request: Request) {
     let duplicateSubmission = false;
 
     try {
-      reservation = await prisma.reservation.create({
+      const createdReservation = (await prisma.reservation.create({
         data: {
           userId: Number(session.user.id),
           facilityId: data.itemType === "FACILITY" ? Number(data.facilityId) : null,
@@ -156,12 +155,14 @@ export async function POST(request: Request) {
           adminNotes: null,
         },
         include: reservationInclude,
-      });
+      })) as ReservationWithRelations;
+
+      reservation = createdReservation;
 
       console.info("[/api/reservations] reservation created successfully", {
-        reservationId: reservation.reservationId,
-        userId: reservation.user.userId,
-        userEmail: reservation.user.email,
+        reservationId: createdReservation.reservationId,
+        userId: createdReservation.user.userId,
+        userEmail: createdReservation.user.email,
         itemType: data.itemType,
       });
     } catch (error) {
@@ -191,6 +192,10 @@ export async function POST(request: Request) {
         userId: Number(session.user.id),
         reservationId: reservation.reservationId,
       });
+    }
+
+    if (!reservation) {
+      return jsonError("Failed to load reservation after submission.", 500);
     }
 
     const mailWarning: string | null = null;

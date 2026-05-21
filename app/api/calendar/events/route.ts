@@ -1,6 +1,9 @@
 import { NextResponse } from "next/server";
-import { ReservationStatus } from "@prisma/client";
-import { prisma } from "@/lib/prisma";
+import { database as prisma } from "@/lib/database";
+import {
+  type ReservationWithRelations,
+  ReservationStatus,
+} from "@/lib/database-types";
 import { requireRouteSession } from "@/lib/session";
 
 export async function GET(request: Request) {
@@ -15,7 +18,7 @@ export async function GET(request: Request) {
   const includeAllReservations =
     searchParams.get("scope") === "all" && session.user.role === "ADMIN";
 
-  const reservations = await prisma.reservation.findMany({
+  const reservations = (await prisma.reservation.findMany({
     where: includeAllReservations
       ? { status: { in: [ReservationStatus.APPROVED, ReservationStatus.PENDING] } }
       : { status: ReservationStatus.APPROVED },
@@ -25,7 +28,7 @@ export async function GET(request: Request) {
       user: { select: { userId: true, name: true, email: true, contactNumber: true } },
     },
     orderBy: { startDateTime: "asc" },
-  });
+  })) as ReservationWithRelations[];
 
   const events = reservations.map((reservation) => {
     const itemType = reservation.facilityId ? "FACILITY" : "EQUIPMENT";
