@@ -211,9 +211,9 @@ async function lockSessionRecord(client: SessionClient, sessionId: string) {
       "Username" AS "username",
       "User_ID" AS "userId",
       "Admin_ID" AS "adminId",
-      "CreatedAt" AS "createdAt",
-      "LastActivity" AS "lastActivity",
-      "ExpiresAt" AS "expiresAt",
+      ("CreatedAt" AT TIME ZONE 'UTC') AS "createdAt",
+      ("LastActivity" AT TIME ZONE 'UTC') AS "lastActivity",
+      ("ExpiresAt" AT TIME ZONE 'UTC') AS "expiresAt",
       "IP_Address" AS "ipAddress",
       "User_Agent" AS "userAgent"
     FROM "AppSession"

@@ -1,0 +1,167 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum FacilityStatus {
+  AVAILABLE
+  UNDER_MAINTENANCE
+
+  @@map("facility_status_enum")
+}
+
+enum ReservationStatus {
+  PENDING
+  APPROVED
+  DENIED
+  CANCELLED
+
+  @@map("reservation_status_enum")
+}
+
+enum EquipmentReturnStatus {
+  BORROWED
+  RETURNED
+
+  @@map("equipment_return_status_enum")
+}
+
+enum Role {
+  USER
+  ADMIN
+
+  @@map("role_enum")
+}
+
+enum AdminRole {
+  CORE_ADMIN
+  ADMIN
+
+  @@map("admin_role_enum")
+}
+
+model Admin {
+  adminId       Int           @id @default(autoincrement()) @map("Admin_ID")
+  name          String        @map("Name") @db.VarChar(191)
+  birthdate     DateTime?     @map("Birthdate") @db.Date
+  gender        String        @map("Gender") @db.VarChar(50)
+  address       String?       @map("Address") @db.VarChar(191)
+  username      String        @unique(map: "Admin_Username_key") @map("Username") @db.VarChar(191)
+  password      String        @map("Password") @db.VarChar(191)
+  contactNumber String        @map("Contact number") @db.VarChar(50)
+  email         String        @map("email") @db.VarChar(191)
+  role          AdminRole     @default(ADMIN) @map("Role")
+  isActive      Boolean       @default(true) @map("Is_Active")
+  createdAt     DateTime      @default(now()) @map("CreatedAt") @db.Timestamp(3)
+  deactivatedAt DateTime?     @map("DeactivatedAt") @db.Timestamp(3)
+  appSessions   AppSession[]
+  equipment     Equipment[]
+  facilities    Facility[]
+  reservations  Reservation[]
+
+  @@map("Admin")
+}
+
+model User {
+  userId        Int          @id @default(autoincrement()) @map("User_ID")
+  name          String       @map("Name") @db.VarChar(191)
+  birthdate     DateTime?    @map("Birthdate") @db.Date
+  gender        String       @map("Gender") @db.VarChar(50)
+  address       String?      @map("Address") @db.VarChar(191)
+  username      String       @unique(map: "User_Username_key") @map("Username") @db.VarChar(191)
+  password      String       @map("Password") @db.VarChar(191)
+  contactNumber String       @map("Contact number") @db.VarChar(50)
+  email         String       @map("email") @db.VarChar(191)
+  role          Role         @default(USER) @map("Role")
+  isActive      Boolean      @default(true) @map("Is_Active")
+  deactivatedAt DateTime?    @map("DeactivatedAt") @db.Timestamp(3)
+  appSessions   AppSession[]
+  reservations  Reservation[]
+
+  @@map("User")
+}
+
+model Equipment {
+  equipmentId   Int           @id @default(autoincrement()) @map("Equipment_ID")
+  adminId       Int           @map("Admin_ID")
+  itemName      String        @map("Item_Name") @db.VarChar(191)
+  description   String?       @map("Description") @db.VarChar(191)
+  price         Decimal?      @map("Price") @db.Decimal(65, 30)
+  quantity      Int?          @map("Quantity")
+  admin         Admin         @relation(fields: [adminId], references: [adminId], onDelete: Restrict, onUpdate: Cascade)
+  reservations  Reservation[]
+
+  @@index([adminId], map: "Equipment_Admin_ID_idx")
+  @@map("Equipment")
+}
+
+model Facility {
+  facilityId    Int            @id @default(autoincrement()) @map("Facility_ID")
+  adminId       Int            @map("Admin_ID")
+  itemName      String         @map("Item Name") @db.VarChar(191)
+  description   String?        @map("Desciption") @db.VarChar(191)
+  status        FacilityStatus @default(AVAILABLE) @map("Status")
+  pricePerDay   Int            @map("Priceperday")
+  admin         Admin          @relation(fields: [adminId], references: [adminId], onDelete: Restrict, onUpdate: Cascade)
+  reservations  Reservation[]
+
+  @@index([adminId], map: "Facility_Admin_ID_idx")
+  @@map("Facility")
+}
+
+model Reservation {
+  reservationId      Int                   @id @default(autoincrement()) @map("Reservation_ID")
+  userId             Int                   @map("User_ID")
+  equipmentId        Int?                  @map("Equipment_ID")
+  adminId            Int?                  @map("Admin_ID")
+  facilityId         Int?                  @map("Facility_ID")
+  startDateTime      DateTime              @map("Start_DateTime") @db.Timestamp(3)
+  endDateTime        DateTime              @map("End_DateTime") @db.Timestamp(3)
+  purpose            String                @map("Purpose") @db.VarChar(191)
+  status             ReservationStatus     @default(PENDING) @map("Status")
+  expectedAttendees  Int?                  @map("Expected_Attendees")
+  equipmentQuantity  Int?                  @map("Equipment_Quantity")
+  approvedAt         DateTime?             @map("ApprovedAt") @db.Timestamp(3)
+  returnedAt         DateTime?             @map("ReturnedAt") @db.Timestamp(3)
+  cancelledAt        DateTime?             @map("CancelledAt") @db.Timestamp(3)
+  returnStatus       EquipmentReturnStatus? @map("Return_Status")
+  adminNotes         String?               @map("Admin_Notes") @db.VarChar(191)
+  admin              Admin?                @relation(fields: [adminId], references: [adminId], onDelete: SetNull, onUpdate: Cascade)
+  equipment          Equipment?            @relation(fields: [equipmentId], references: [equipmentId], onDelete: SetNull, onUpdate: Cascade)
+  facility           Facility?             @relation(fields: [facilityId], references: [facilityId], onDelete: SetNull, onUpdate: Cascade)
+  user               User                  @relation(fields: [userId], references: [userId], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([userId, facilityId, startDateTime, endDateTime], map: "Reservation_user_facility_start_end_key")
+  @@unique([userId, equipmentId, startDateTime, endDateTime], map: "Reservation_user_equipment_start_end_key")
+  @@index([userId], map: "Reservation_User_ID_idx")
+  @@index([equipmentId], map: "Reservation_Equipment_ID_idx")
+  @@index([adminId], map: "Reservation_Admin_ID_idx")
+  @@index([facilityId], map: "Reservation_Facility_ID_idx")
+  @@map("Reservation")
+}
+
+model AppSession {
+  sessionId     String    @id @map("Session_ID") @db.VarChar(191)
+  role          Role      @map("Role")
+  username      String    @map("Username") @db.VarChar(191)
+  userId        Int?      @map("User_ID")
+  adminId       Int?      @map("Admin_ID")
+  createdAt     DateTime  @default(now()) @map("CreatedAt") @db.Timestamp(3)
+  lastActivity  DateTime  @map("LastActivity") @db.Timestamp(3)
+  expiresAt     DateTime  @map("ExpiresAt") @db.Timestamp(3)
+  ipAddress     String?   @map("IP_Address") @db.VarChar(191)
+  userAgent     String?   @map("User_Agent") @db.VarChar(191)
+  admin         Admin?    @relation(fields: [adminId], references: [adminId], onDelete: Cascade, onUpdate: Cascade)
+  user          User?     @relation(fields: [userId], references: [userId], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([expiresAt], map: "AppSession_ExpiresAt_idx")
+  @@index([username], map: "AppSession_Username_idx")
+  @@index([role, userId], map: "AppSession_Role_User_ID_idx")
+  @@index([role, adminId], map: "AppSession_Role_Admin_ID_idx")
+  @@map("AppSession")
+}

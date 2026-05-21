@@ -10,11 +10,15 @@
     "test:session": "ts-node --project tsconfig.test.json --transpile-only tests/session.test.ts",
     "lint": "next lint",
     "seed": "tsx supabase/seed.ts",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "tsx scripts/apply-supabase-migrations.ts",
+    "prisma:seed": "prisma db seed",
     "db:migrate": "tsx scripts/apply-supabase-migrations.ts",
     "db:backup": "tsx scripts/backup-database.ts",
     "sessions:cleanup": "tsx scripts/cleanup-expired-sessions.ts"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
     "@fullcalendar/core": "^6.1.19",
     "@fullcalendar/daygrid": "^6.1.19",
     "@fullcalendar/interaction": "^6.1.19",
@@ -50,6 +54,7 @@
     "@types/react-dom": "^18.3.7",
     "autoprefixer": "^10.4.21",
     "postcss": "^8.5.3",
+    "prisma": "^6.19.3",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.9.3"
   }
